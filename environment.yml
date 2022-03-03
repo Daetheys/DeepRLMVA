@@ -1,0 +1,9 @@
+name: deeprl
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - python=3.9
+  - pip
+  - jax
