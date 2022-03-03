@@ -1,16 +1,12 @@
-class Network:
-    pass
-
-
 class Agent:
     def __init__(self):
         pass
 
-    def select_action(self, state):
+    def select_action(self, state, return_probas=True):
         pass
 
-    def policy(self):
+    def update_critic(self, critic_params):
         pass
 
-    def update(self):
+    def update_actor(self, actor_params):
         pass
