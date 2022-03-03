@@ -27,3 +27,7 @@ $ conda env export --from-history > environment.yml
 ```
 
 Then delete the last line in environment.yml with the prefix.
+
+### To run Tests
+
+```$ pytest ```
