@@ -31,5 +31,5 @@ Then delete the last line in environment.yml with the prefix.
 ### To run Tests
 
 ```bash
-$ pytest 
+$ python -m pytest 
 ```

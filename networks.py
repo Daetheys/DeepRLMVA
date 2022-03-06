@@ -7,18 +7,22 @@ import jax
 
 def build_network(instr):
     """ Generic builder for neural networks """
-    l = []
-    for cl,args in range(len(instr)):
-        l.append( cl(*args) )
-    return hk.Sequential(l)
+    def _wrap(x):
+        l = []
+        print(instr)
+        for cl,args in instr:
+            l.append( cl(*args) )
+        model = hk.Sequential(l)
+        return model(x)
+    return _wrap
 
 def build_mlp(hidden_dims,activation):
     """ MLP builder (stacks Linear layers) """
     l = []
     for i in range(len(hidden_dims)):
-        l.append((hk.Linear,(hidden_dims[i])))
-        l.append((lambda : activation,None))
-    return hk.Sequential(l)
+        l.append((hk.Linear,([hidden_dims[i]])))
+        l.append((lambda x : activation,[None]))
+    return build_network(l)
 
 # -> Add Conv builders ? Attention builders ?
 
