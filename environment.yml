@@ -5,8 +5,7 @@ channels:
 dependencies:
   - numpy
   - python=3.9
-  - pip
-  - jax
-  - dm-haiku
-  - rlax
-  - pytest
+  - pip:
+    - jax
+    - dm-haiku
+    - pytest

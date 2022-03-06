@@ -11,6 +11,11 @@ $ conda env create -f environment.yml
 Then setup a new interpreter in the interpreter settings of PyCharm from the newly created conda environment 
 named `deeprl`.
 
+/!\ if you work on windows the installing of jaxlib might fail (hardly supported on windows). Thus run this command to install the library correctly : 
+```bash
+pip install jaxlib -f https://whls.blob.core.windows.net/unstable/index.html --use-deprecated legacy-resolver
+```
+
 
 ### Add new dependencies
 
