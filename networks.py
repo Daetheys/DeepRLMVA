@@ -14,7 +14,7 @@ def build_network(instr):
             l.append( cl(*args) )
         model = hk.Sequential(l)
         return model(x)
-    return _wrap
+    return hk.transform(_wrap)
 
 def build_mlp(hidden_dims,activation):
     """ MLP builder (stacks Linear layers) """

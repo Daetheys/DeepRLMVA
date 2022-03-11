@@ -6,7 +6,7 @@ import jax
 from networks import *
 
 def run_net(net,inp_shape):
-    init,fwd = hk.transform(net)
+    init,fwd = net
     rng = jax.random.PRNGKey(42)
     x = jnp.zeros(inp_shape)
     params = init(rng,x)
