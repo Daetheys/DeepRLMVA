@@ -60,4 +60,4 @@ def rollout(agent, env, nb_steps, replay_buffer):
         actions = traj_info[1],
         rewards = traj_info[2],
         gaes = traj_info[3]
-        ), mean(traj_info[2]), mean(len_ep) # obs, act, reward, gaes, trajectory reward (=sum)
+        ), mean(traj_info[2]), mean(len_ep) # obs, act, reward, gaes, mean_ep_reward, mean_ep_timestep 
