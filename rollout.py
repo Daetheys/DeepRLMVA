@@ -1,4 +1,5 @@
 import numpy as np
+from statistics import mean
 
 def calculate_gaes(rewards, values, gamma=0.99, decay=0.97):
     """
@@ -23,11 +24,14 @@ def rollout(agent, env, nb_steps, replay_buffer):
     ### Create data storage
     traj_info = [[], [], [], []] # obs, act, reward, values
     obs = env.reset()
-    traj_reward = 0
+    #traj_reward = 0
+    len_ep = []
+    episode_length = 0
     state = 0 #tfo
 
     ### Generate a trajectory of length nb_steps
     for i in range(nb_steps):
+        episode_length += 1
         act = agent.select_action(obs)  # Sample an action , to adapt
         value = agent.policy(obs)[0]
         next_obs, reward, done, i = env.step(act)
@@ -42,11 +46,18 @@ def rollout(agent, env, nb_steps, replay_buffer):
 
         state = next_state
         obs = next_obs
-        traj_reward += reward
+        #traj_reward += reward
         if done:
-            break
+            len_ep.append(episode_length)
+            episode_length = 0
+            obs = env.reset()
 
     traj_info = [np.asarray(x) for x in traj_info]
     traj_info[3] = calculate_gaes(traj_info[2], traj_info[3])  # Calculate GAES
 
-    return traj_info, traj_reward # obs, act, reward, gaes, trajectory reward (=sum)
+    return dict(
+        observations = traj_info[0],
+        actions = traj_info[1],
+        rewards = traj_info[2],
+        gaes = traj_info[3]
+        ), mean(traj_info[2]), mean(len_ep) # obs, act, reward, gaes, trajectory reward (=sum)
