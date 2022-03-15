@@ -5,6 +5,8 @@ DEFAULT_CONFIG = {
   ""
 }
 
+from rollout import rollout
+
 class Trainer:
   def __init__(self,agent,env_creator,config=DEFAULT_CONFIG):
     self.agent = agent
@@ -24,5 +26,5 @@ class Trainer:
         batch = self.replay_buffer.sample(self.config['train_batch_size'])
         self.agent.fit(batch)
       #Eval Rollout
-      #rollout(self.eval_env,self.agent,self.config['testing_rollout_length'])
+      rollout(self.eval_env,self.agent,self.config['testing_rollout_length'])
       #print('stats') #Print stats about what's happening during training
