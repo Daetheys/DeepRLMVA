@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import numpy as np
 
 Transition = collections.namedtuple("Transition",
-                                    field_names=["obs_tm1", "action_tm1", "reward_t", "discount_t", "obs_t", "done"])
+                                    field_names=["obs_tm1", "action_tm1", "reward_t", "obs_t", "discount_t", "gae"])
 
 
 class BaseReplayBuffer:
@@ -18,7 +18,7 @@ class BaseReplayBuffer:
         self._memory = list()
         self._maxlen = buffer_capacity
 
-    def add(self, obs_tm1, action_tm1, reward_t, discount_t, obs_t, done):
+    def add(self, obs_tm1, action_tm1, reward_t, obs_t, discount_t, gae):
         """Add a new transition to memory."""
         if len(self._memory) >= self._maxlen:
             self._memory.pop(0)  # remove first elem (oldest)
@@ -27,9 +27,9 @@ class BaseReplayBuffer:
             obs_tm1=obs_tm1,
             action_tm1=action_tm1,
             reward_t=reward_t,
-            discount_t=discount_t,
             obs_t=obs_t,
-            done=done)
+            discount_t=discount_t,
+            gae=gae)
 
         # convert every data into jnp array
         transition = jax.tree_map(jnp.array, transition)
@@ -70,8 +70,7 @@ class PrioritizedReplayBuffer:
         self._priority = list()
         self._maxlen = buffer_capacity
 
-    def add(self, obs_tm1, action_tm1, reward_t, discount_t, obs_t, done,
-            priority):
+    def add(self, obs_tm1, action_tm1, reward_t, obs_t, discount_t, gae, priority):
         """Add a new transition to memory."""
         if len(self._memory) >= self._maxlen:
             self._memory.pop(0)  # remove first elem (oldest)
@@ -81,9 +80,9 @@ class PrioritizedReplayBuffer:
             obs_tm1=obs_tm1,
             action_tm1=action_tm1,
             reward_t=reward_t,
-            discount_t=discount_t,
             obs_t=obs_t,
-            done=done)
+            discount_t=discount_t,
+            gae=gae)
 
         # convert every data into jnp array
         transition = jax.tree_map(jnp.array, transition)
