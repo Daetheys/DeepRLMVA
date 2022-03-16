@@ -14,9 +14,9 @@ def policy(params, apply, state):
     return value, pi
 
 
-def select_action(params, apply, state, rng):
+def select_action(params, apply, actions, state, rng):
     _, pi = policy(apply, state, params)
-    action = choice(rng, p=pi)
+    action = choice(rng, a=actions, p=pi)
     return action
 
 
