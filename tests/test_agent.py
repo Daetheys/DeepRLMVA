@@ -2,87 +2,87 @@ import jax
 import jax.numpy as jnp
 import optax
 
-from networks import build_network, simple_net
+from networks import build_network, actor_critic_net
 from agent import policy, select_action, loss_actor_critic, update
 
 
 def test_policy():
 
-    net = simple_net(2)
+    net = actor_critic_net(5)
     init, apply = net
     rng = jax.random.PRNGKey(42)
     state = jnp.zeros(10)
     params = init(rng, state)
 
-    value, pi = policy(params, apply, state, rng)
-    assert pi.shape == 5  # Probability distribution over actions
-    assert value.shape == (15, 10)
+    pi, value = policy(params, apply, state, rng)
+    assert pi.shape == (5, )  # Probability distribution over actions
+
+    state = jnp.zeros((15, 10))
+    params = init(rng, state)
+    pi, value = policy(params, apply, state, rng)
+    assert pi.shape == (15, 5)
 
 
 def test_select_action():
-    net = build_network([5])
-    init, fwd = net
+    net = actor_critic_net(5)
+    init, apply = net
     rng = jax.random.PRNGKey(42)
-    x = jnp.zeros((15, 10))
-    params = init(rng, x)
-    apply = fwd(params=params, x=x, rng=rng)
+    state = jnp.zeros(10)
+    params = init(rng, state)
+    actions = jnp.zeros(5, dtype=int)
 
-    actions = jnp.arange(5)
-    action = select_action(params, apply, actions, x, rng)
+    action = select_action(params, apply, actions, state, rng)
     assert action in actions
-    assert type(action) == int
 
 
 def test_loss_actor_critic():
-    net = build_network([5])
-    init, fwd = net
+    net = actor_critic_net(5)
+    init, apply = net
     rng = jax.random.PRNGKey(42)
-    x = jnp.zeros((15, 10))
-    params = init(rng, x)
-    apply = fwd(params=params, x=x, rng=rng)
+    states = jnp.zeros((15, 10))
+    params = init(rng, states)
 
-    target = jnp.zeros((15, 10))
-    action = 0
+    target = 0
+    actions = jnp.zeros(15, dtype=int)
     clip_eps = 0.1
+    adv = 0
+
+    rng_old = jax.random.PRNGKey(10)
+    params_old = init(rng_old, states)
+
+    loss = loss_actor_critic(params, apply, states, target, actions, clip_eps, params_old, adv, rng)
+    assert loss == 0
+
     adv = 1
-
-    rng_old = jax.random.PRNGKey(42)
-    params_old = init(rng_old, x)
-
-    value, pi = policy(params, apply, x)
-    ratio = pi[action] / params_old[action]
-    jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv).mean()
-
-    loss = loss_actor_critic(params, apply, x, target, action, clip_eps, params_old, adv)
-
-    assert loss
+    loss = loss_actor_critic(params, apply, states, target, actions, clip_eps, params_old, adv, rng)
+    assert loss == 1
 
 
 def test_update():
-    states = jnp.zeros((15, 10))
-    action = jnp.zeros((15, 10))
 
-    # simple network
-    net = build_network([5])
-    init, fwd = net
+    net = actor_critic_net(5)
+    init, apply = net
+
     rng = jax.random.PRNGKey(42)
+    rng_old = jax.random.PRNGKey(10)
+
+    states = jnp.zeros((15, 10))
     params = init(rng, states)
-    apply = fwd(params=params, x=states, rng=rng)
+    params_old = init(rng_old, states)
+
+    values = jnp.zeros((15,))
+    targets = jnp.zeros((15,))
+
+    actions = jnp.zeros(15, dtype=int)
 
     optimizer = optax.adam(3e-4)
     opt_state = optimizer.init(params)
     clip_eps = 0.1
-    adv = 1
 
-    value = jnp.zeros((5,10))
-    target = jnp.zeros((5,10))
+    advs = jnp.zeros((15,))
+    log_pi_old = jnp.zeros((15,))
 
-    log_pi_old = jnp.zeros(5)
-    rng = jax.random.PRNGKey(30)
-    params_old = init(rng, states)
+    batch = states, actions, log_pi_old, values, targets, advs
+    new_params, new_opt_state = update(params, apply, batch, optimizer, opt_state, clip_eps, params_old, rng)
 
-    batch = states, action, log_pi_old, value, target, adv
-
-    new_params, new_opt_state = update(params, apply, batch, optimizer, opt_state, clip_eps, params_old)
-
-    assert new_opt_state.shape == opt_state.shape
+    assert params['linear']['w'].shape == new_params['linear']['w'].shape
