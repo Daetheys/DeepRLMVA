@@ -11,7 +11,7 @@ Trainer:
 
 ReplayBuffer:
     __init__()
-    add(timestep : ?)
+    add(state, action, reward, next_state, discount, gae)
         Adds a timestep to the ReplayBuffer
     sample(batch_size : Int)->Array[?]
         Samples a batch of timesteps
