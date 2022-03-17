@@ -32,3 +32,13 @@ def build_mlp(hidden_dims,activation):
 
 def simple_net(out_dim):
     return build_mlp([256,256,out_dim],jax.nn.relu)
+
+def actor_critic_net(out_dim):
+    def _wrap(x):
+        base_net = hk.Sequential([hk.Linear(256),jax.nn.relu])
+        policy_head = hk.Sequential([hk.Linear(out_dim),jax.nn.sigmoid])
+        value_head = hk.Sequential([hk.Linear(1)])
+        base = base_net(x)
+        return policy_head(base),value_head(base)
+    return hk.transform(_wrap)
+    
