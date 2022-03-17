@@ -9,9 +9,9 @@ DEFAULT_AGENT_CONFIG = {
 }
 
 
-def policy(params, apply, state):
-    value, pi = apply(params, state)
-    return value, pi
+def policy(params, apply, state, rng):
+    pi, value = apply(params, x=state, rng=rng)
+    return pi, value
 
 
 def select_action(params, apply, actions, state, rng):
@@ -20,31 +20,31 @@ def select_action(params, apply, actions, state, rng):
     return action
 
 
-def loss_actor_critic(params, apply, state, target, action, clip_eps, pi_old, adv):
+def loss_actor_critic(params, apply, state, target, action, clip_eps, params_old, adv):
     value_predicted, pi = policy(apply, state, params)
     loss_critic = jnp.square(value_predicted - target).mean()
 
-    ratio = pi[action] / pi_old[action]
+    ratio = pi[action] / params_old[action]
     loss_actor = jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv).mean()
 
     return loss_critic + loss_actor
 
 
-def update(params, apply, batch, optimizer, opt_state, clip_eps, pi_old, adv):
+def update(params, apply, batch, optimizer, opt_state, clip_eps, params_old):
     """
     :param params: Parameters of the model
     :param batch: Batch containing N trajectories of size T and associated state, action,
     log probabilities, values, targets and advantages
     :param opt_state: optimizer state
     :param clip_eps: parameter used to clip the probability ratio between 1 - eps, 1 + eps
-    :param pi_old: vector of policy parameters before the update
+    :param params_old: parameters before the update
     :param adv: vector of advantage functions
     """
 
     state, action, log_pi_old, value, target, a = batch
 
     grad_fn = jax.grad(loss_actor_critic)
-    grads = grad_fn(params, apply, state, target, action, clip_eps, pi_old, adv)
+    grads = grad_fn(params, apply, state, target, action, clip_eps, params_old, a)
     updates, new_opt_state = optimizer.update(grads, opt_state)
     new_params = optax.apply_updates(params, updates)
 
