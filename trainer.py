@@ -3,25 +3,19 @@ import optax
 from rollout import rollout
 from agent import update
 from replay_buffer import ReplayBuffer
-
-DEFAULT_CONFIG = {
-  "nb_fit_per_epoch":5,
-  "train_batch_size":512,
-  "training_rollout_length":1024,
-  "learning_rate":0.01,
-  "clip_eps":0.1
-}
+from config import DEFAULT_TRAINER_CONFIG
 
 jitted_rollout = jax.jit(rollout)
 jitted_update = jax.jit(update)
+
+
 class Trainer:
-  def __init__(self,net,env_creator,config=DEFAULT_CONFIG):
+  def __init__(self,net,env_creator,config=DEFAULT_TRAINER_CONFIG):
     self.env_creator = env_creator
 
     self.net = net
 
     self.config = config
-    
 
     self.replay_buffer = ReplayBuffer(1e5)
 
