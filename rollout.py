@@ -15,7 +15,7 @@ def calculate_gaes(rewards, values, gamma=0.99, decay=0.97):
 
     return np.array(gaes[::-1])
 
-def rollout(agent, env, nb_steps, replay_buffer, discount, params, apply, rng):
+def rollout(select_action, policy, env, nb_steps, replay_buffer, discount, params, apply, rng):
     """
     Performs a single rollout.
     Returns training data in the shape (n_steps, observation_shape)
@@ -31,8 +31,8 @@ def rollout(agent, env, nb_steps, replay_buffer, discount, params, apply, rng):
     ### Generate a trajectory of length nb_steps
     for i in range(nb_steps):
         episode_length += 1
-        act = agent.select_action(params, apply, obs, rng)  # Sample an action , to adapt
-        value = agent.policy(obs)[0]
+        act = select_action(params, apply, obs, rng)  # Sample an action , to adapt
+        value = policy(params, apply, obs, rng)[0]
         next_obs, reward, done, i = env.step(act)
 
         ### Store Data
