@@ -4,10 +4,6 @@ import jax.numpy as jnp
 from jax.random import choice
 
 
-DEFAULT_AGENT_CONFIG = {
-    "clip_eps": 0.1
-}
-
 
 def policy(params, apply, state, rng):
     pi, value = apply(params, x=state, rng=rng)
