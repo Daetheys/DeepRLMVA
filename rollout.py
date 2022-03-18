@@ -15,7 +15,7 @@ def calculate_gaes(rewards, values, gamma=0.99, decay=0.97):
 
     return np.array(gaes[::-1])
 
-def rollout(agent, env, nb_steps, replay_buffer, discount = 0.99, gae):
+def rollout(agent, env, nb_steps, replay_buffer, discount, params, apply, rng):
     """
     Performs a single rollout.
     Returns training data in the shape (n_steps, observation_shape)
@@ -31,16 +31,16 @@ def rollout(agent, env, nb_steps, replay_buffer, discount = 0.99, gae):
     ### Generate a trajectory of length nb_steps
     for i in range(nb_steps):
         episode_length += 1
-        act = agent.select_action(obs)  # Sample an action , to adapt
+        act = agent.select_action(params, apply, obs, rng)  # Sample an action , to adapt
         value = agent.policy(obs)[0]
         next_obs, reward, done, i = env.step(act)
 
         ### Store Data
         for j, item in enumerate((obs, act, reward, value)):
           traj_info[j].append(item)
-          
-        replay_buffer.add(obs, act, reward, next_obs, discount, gae)
- 
+
+        #replay_buffer.add(obs, act, reward, next_obs, discount, gae)
+
 
         obs = next_obs
         #traj_reward += reward
@@ -49,9 +49,15 @@ def rollout(agent, env, nb_steps, replay_buffer, discount = 0.99, gae):
             episode_length = 0
             obs = env.reset()
 
+
     traj_info = [np.asarray(x) for x in traj_info]
     traj_info[3] = calculate_gaes(traj_info[2], traj_info[3])  # Calculate GAES
-
+    
+    for i in range(nb_steps-1):
+            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[3][i+1], discount, traj_info[3][i])
+    
+    replay_buffer.add(traj_info[0][nb_steps-1], traj_info[1][nb_steps-1],traj_info[2][nb_steps-1], traj_info[3][0], 0, traj_info[3][nb_steps-1])
+    
     return dict(
         observations = traj_info[0],
         actions = traj_info[1],
