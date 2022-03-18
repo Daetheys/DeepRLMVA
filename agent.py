@@ -17,13 +17,13 @@ def policy_continuous(params, apply, state, rng):
 def select_action_discrete(params, apply, state, rng):
     pi, value = policy_discrete(params, apply, state, rng)
     action = choice(rng, a=jnp.arange(pi.shape[0]), p=pi)
-    return action
+    return action, value
 
 
 def select_action_continuous(params, apply, state, rng):
     mu, sigma, value = policy_continuous(params, apply, state, rng)
     action = mu + sigma * normal(rng, shape=(10000,))
-    return action
+    return action, value
 
 
 def loss_actor_critic(params, apply, states, target, actions, clip_eps, params_old, adv, rng):
