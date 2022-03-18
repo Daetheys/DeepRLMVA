@@ -30,7 +30,7 @@ def test_select_action_discrete():
     state = jnp.zeros(10)
     params = init(rng, state)
 
-    action = select_action_discrete(params, apply, state, rng)
+    action,_ = select_action_discrete(params, apply, state, rng)
     assert action in jnp.arange(5)
 
 
