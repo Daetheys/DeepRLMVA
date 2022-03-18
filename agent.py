@@ -1,24 +1,34 @@
 import optax
 import jax
 import jax.numpy as jnp
-from jax.random import choice
+from jax.random import choice, normal
 
 
-
-def policy(params, apply, state, rng):
+def policy_discrete(params, apply, state, rng):
     pi, value = apply(params, x=state, rng=rng)
     return pi, value
 
 
-def select_action(params, apply, actions, state, rng):
-    pi, value = policy(params, apply, state, rng)
-    action = choice(rng, a=actions, p=pi)
+def policy_continuous(params, apply, state, rng):
+    mean, std, value = apply(params, x=state, rng=rng)
+    return mean, std, value
+
+
+def select_action_discrete(params, apply, state, rng):
+    pi, value = policy_discrete(params, apply, state, rng)
+    action = choice(rng, a=jnp.arange(pi.shape[0]), p=pi)
+    return action
+
+
+def select_action_continuous(params, apply, state, rng):
+    mu, sigma, value = policy_continuous(params, apply, state, rng)
+    action = mu + sigma * normal(rng, shape=(10000,))
     return action
 
 
 def loss_actor_critic(params, apply, states, target, actions, clip_eps, params_old, adv, rng):
-    pi, value_predicted = policy(params, apply, states, rng)
-    pi_old, _ = policy(params_old, apply, states, rng)
+    pi, value_predicted = policy_discrete(params, apply, states, rng)
+    pi_old, _ = policy_discrete(params_old, apply, states, rng)
     loss_critic = jnp.square(value_predicted - target).mean()
 
     pis = jax.vmap(lambda a, b: a[b])(pi, actions)

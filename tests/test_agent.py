@@ -3,10 +3,10 @@ import jax.numpy as jnp
 import optax
 
 from networks import build_network, actor_critic_net
-from agent import policy, select_action, loss_actor_critic, update
+from agent import policy_discrete, select_action_discrete, loss_actor_critic, update
 
 
-def test_policy():
+def test_policy_discrete():
 
     net = actor_critic_net(5)
     init, apply = net
@@ -14,25 +14,24 @@ def test_policy():
     state = jnp.zeros(10)
     params = init(rng, state)
 
-    pi, value = policy(params, apply, state, rng)
+    pi, value = policy_discrete(params, apply, state, rng)
     assert pi.shape == (5, )  # Probability distribution over actions
 
     state = jnp.zeros((15, 10))
     params = init(rng, state)
-    pi, value = policy(params, apply, state, rng)
+    pi, value = policy_discrete(params, apply, state, rng)
     assert pi.shape == (15, 5)
 
 
-def test_select_action():
+def test_select_action_discrete():
     net = actor_critic_net(5)
     init, apply = net
     rng = jax.random.PRNGKey(42)
     state = jnp.zeros(10)
     params = init(rng, state)
-    actions = jnp.zeros(5, dtype=int)
 
-    action = select_action(params, apply, actions, state, rng)
-    assert action in actions
+    action = select_action_discrete(params, apply, state, rng)
+    assert action in jnp.arange(5)
 
 
 def test_loss_actor_critic():
