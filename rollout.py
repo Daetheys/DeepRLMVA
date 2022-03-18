@@ -15,7 +15,7 @@ def calculate_gaes(rewards, values, gamma=0.99, decay=0.97):
 
     return np.array(gaes[::-1])
 
-def rollout(agent, env, nb_steps, replay_buffer):
+def rollout(agent, env, nb_steps, replay_buffer, discount = 0.99, gae):
     """
     Performs a single rollout.
     Returns training data in the shape (n_steps, observation_shape)
@@ -39,7 +39,7 @@ def rollout(agent, env, nb_steps, replay_buffer):
         for j, item in enumerate((obs, act, reward, value)):
           traj_info[j].append(item)
           
-        replay_buffer.add(obs, act, reward, next_obs, done)
+        replay_buffer.add(obs, act, reward, next_obs, discount, gae)
  
 
         obs = next_obs
