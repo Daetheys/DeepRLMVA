@@ -27,7 +27,6 @@ def rollout(agent, env, nb_steps, replay_buffer):
     #traj_reward = 0
     len_ep = []
     episode_length = 0
-    state = 0 #tfo
 
     ### Generate a trajectory of length nb_steps
     for i in range(nb_steps):
@@ -35,16 +34,14 @@ def rollout(agent, env, nb_steps, replay_buffer):
         act = agent.select_action(obs)  # Sample an action , to adapt
         value = agent.policy(obs)[0]
         next_obs, reward, done, i = env.step(act)
-        next_state = 0 #tfo
 
         ### Store Data
         for j, item in enumerate((obs, act, reward, value)):
           traj_info[j].append(item)
           
-        replay_buffer.add(state, act, reward, next_state)
+        replay_buffer.add(obs, act, reward, next_obs, done)
  
 
-        state = next_state
         obs = next_obs
         #traj_reward += reward
         if done:
