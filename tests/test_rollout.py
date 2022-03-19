@@ -6,7 +6,7 @@ from statistics import mean
 from rollout import *
 from replay_buffer import BaseReplayBuffer
 from networks import actor_critic_net
-import agent 
+import agent  
 
 def test_rollout():
     select_action = agent.select_action_discrete
@@ -18,5 +18,6 @@ def test_rollout():
     net = actor_critic_net(5)
     init, apply = net
     rng = jax.random.PRNGKey(42)
+    
     infos, mean_reward, mean_timestep = rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply, rng)
-    assert infos.shape == (4, 50)
+    assert len(infos) == 4
