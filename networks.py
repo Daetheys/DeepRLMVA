@@ -42,3 +42,14 @@ def actor_critic_net(out_dim):
         return policy_head(base),value_head(base)
     return hk.transform(_wrap)
     
+def continuous_actor_critic_net(out_dim):
+    def _wrap(x):
+        base_net = hk.Sequential([hk.Linear(256),jax.nn.relu])
+        policy_head = hk.Sequential([hk.Linear(256),jax.nn.relu])
+        mean_policy_head = hk.Sequential([hk.Linear(out_dim)])
+        logstd_policy_head = hk.Sequential([hk.Linear(out_dim)])
+        value_head = hk.Sequential([hk.Linear(1)])
+        base = base_net(x)
+        policy_base = policy_head(base)
+        return (mean_policy_head(policy_base),logstd_policy_head(policy_base)),value_head(base)
+    return hk.transform(_wrap)
