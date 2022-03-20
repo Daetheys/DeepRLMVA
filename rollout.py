@@ -55,7 +55,7 @@ def rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply
     for i in range(nb_steps-1):
             replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[3][i+1], discount, traj_info[3][i])
     
-    replay_buffer.add(traj_info[0][nb_steps-1], traj_info[1][nb_steps-1],traj_info[2][nb_steps-1], traj_info[3][0], 0, traj_info[3][nb_steps-1])
+    #replay_buffer.add(traj_info[0][nb_steps-1], traj_info[1][nb_steps-1],traj_info[2][nb_steps-1], traj_info[3][0], 0, traj_info[3][nb_steps-1])
     
     return dict(
         observations = traj_info[0],
