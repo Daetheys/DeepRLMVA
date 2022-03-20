@@ -2,8 +2,8 @@ import jax
 import jax.numpy as jnp
 import optax
 
-from networks import build_network, actor_critic_net
-from agent import policy_discrete, select_action_discrete, loss_actor_critic, update
+from networks import actor_critic_net, continuous_actor_critic_net
+from agent import policy_discrete, policy_continuous, select_action_discrete, select_action_continuous, loss_actor_critic, update
 
 
 def test_policy_discrete():
@@ -16,11 +16,27 @@ def test_policy_discrete():
 
     pi, value = policy_discrete(params, apply, state, rng)
     assert pi.shape == (5, )  # Probability distribution over actions
+    assert value.shape == (1, )
 
     state = jnp.zeros((15, 10))
     params = init(rng, state)
     pi, value = policy_discrete(params, apply, state, rng)
     assert pi.shape == (15, 5)
+    assert value.shape == (15, 1)
+
+
+def test_policy_continuous():
+
+    net = continuous_actor_critic_net(3)
+    init, apply = net
+    rng = jax.random.PRNGKey(42)
+    states = jnp.zeros((15, 10))
+    params = init(rng, states)
+
+    mean, std, value = policy_continuous(params, apply, states, rng)
+    assert mean.shape == (15, 3)
+    assert std.shape == (15, 3)
+    assert value.shape == (15, 1)
 
 
 def test_select_action_discrete():
@@ -30,8 +46,35 @@ def test_select_action_discrete():
     state = jnp.zeros(10)
     params = init(rng, state)
 
-    action,_ = select_action_discrete(params, apply, state, rng)
+    action, _ = select_action_discrete(params, apply, state, rng)
     assert action in jnp.arange(5)
+
+
+def test_select_action_continuous():
+    net = continuous_actor_critic_net(3)
+    init, apply = net
+    rng = jax.random.PRNGKey(42)
+    state = jnp.zeros(10)
+    params = init(rng, state)
+    exploration = True
+
+    action, _ = select_action_continuous(params, apply, state, exploration, rng)
+    assert action.shape == (3, )
+
+    exploration = False
+    action, _ = select_action_continuous(params, apply, state, exploration, rng)
+    assert action.shape == (3,)
+
+    states = jnp.zeros((15, 10))
+    params = init(rng, states)
+    action, value = select_action_continuous(params, apply, states, exploration, rng)
+    assert action.shape == (15, 3)
+    assert value.shape == (15, 1)
+
+    exploration = True
+    action, value = select_action_continuous(params, apply, states, exploration, rng)
+    assert action.shape == (15, 3)
+    assert value.shape == (15, 1)
 
 
 def test_loss_actor_critic():
