@@ -57,3 +57,14 @@ def test_actor_critic_net():
     pol_out,val_out = run_net(net,(23,15))
     assert pol_out.shape == (23,5)
     assert val_out.shape == (23,1)
+
+def test_continuous_actor_critic_net():
+    net = continuous_actor_critic_net(5)
+    (mean_out,logstd_out),val_out = run_net(net,(45,3))
+    assert mean_out.shape == (45,5)
+    assert logstd_out.shape == (45,5)
+    assert val_out.shape == (45,1)
+    (mean_out,logstd_out),val_out = run_net(net,(23,15))
+    assert mean_out.shape == (23,5)
+    assert logstd_out.shape == (23,5)
+    assert val_out.shape == (23,1)

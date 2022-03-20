@@ -4,25 +4,28 @@ import jax.numpy as jnp
 from jax.random import choice, normal
 
 
-def policy_discrete(params, apply, state, rng):
-    pi, value = apply(params, x=state, rng=rng)
+def policy_discrete(params, apply, states, rng):
+    pi, value = apply(params, x=states, rng=rng)
     return pi, value
 
 
-def policy_continuous(params, apply, state, rng):
-    mean, std, value = apply(params, x=state, rng=rng)
+def policy_continuous(params, apply, states, rng):
+    (mean, std), value = apply(params, x=states, rng=rng)
     return mean, std, value
 
 
 def select_action_discrete(params, apply, state, rng):
     pi, value = policy_discrete(params, apply, state, rng)
-    action = choice(rng, a=jnp.arange(pi.shape[0]), p=pi)
-    return action, value
+    actions = choice(rng, a=jnp.arange(pi.shape[0]), p=pi)
+    return actions, value
 
 
-def select_action_continuous(params, apply, state, rng):
+def select_action_continuous(params, apply, state, exploration, rng):
     mu, sigma, value = policy_continuous(params, apply, state, rng)
-    action = mu + sigma * normal(rng, shape=(10000,))
+    if exploration:
+        action = mu + sigma * normal(key=rng, shape=mu.shape)
+    else:
+        action = mu
     return action, value
 
 
@@ -61,3 +64,4 @@ def update(params, apply, batch, optimizer, opt_state, clip_eps, params_old, rng
     new_params = optax.apply_updates(params, updates)
 
     return new_params, new_opt_state
+
