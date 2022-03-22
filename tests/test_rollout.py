@@ -5,7 +5,7 @@ import gym
 from statistics import mean
 
 from rollout import * 
-#from replay_buffer import BaseReplayBuffer
+from replay_buffer import BaseReplayBuffer
 from networks import actor_critic_net
 import agent  
 
@@ -14,11 +14,12 @@ def test_rollout():
     nb_steps = 50
     replay_buffer = BaseReplayBuffer(5)
     discount = 0.99
-    env = gym.make('CartPole-v0')
+    env_creator = lambda :EnvWrapper(gym.make('CartPole-v1'))
+    env = env_creator()
     net = actor_critic_net(env.action_space.n)
     init, apply = net
     rng = jax.random.PRNGKey(42)
-    params= init(rng, jnp.zeros(10))
+    params= init(rng, jnp.zeros(4))
     rng = jax.random.PRNGKey(42)
 
     infos, mean_reward, mean_timestep = rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply, rng)

@@ -6,7 +6,8 @@ def calculate_gaes(rewards, values, gamma=0.99, decay=0.97):
     Return the General Advantage Estimates from the given rewards and values.
     Paper: https://arxiv.org/pdf/1506.02438.pdf
     """
-    next_values = np.concatenate([values[1:][0], [0]])
+    next_values = values[1:]
+    next_values = np.append(next_values, 0)  
     deltas = [rew + gamma * next_val - val for rew, val, next_val in zip(rewards, values, next_values)]
 
     gaes = [deltas[-1]]
@@ -38,9 +39,6 @@ def rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply
         for j, item in enumerate((obs, act, reward, value)):
           traj_info[j].append(item)
 
-        #replay_buffer.add(obs, act, reward, next_obs, discount, gae)
-
-
         obs = next_obs
         #traj_reward += reward
         if done:
@@ -53,9 +51,9 @@ def rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply
     traj_info[3] = calculate_gaes(traj_info[2], traj_info[3])  # Calculate GAES
     
     for i in range(nb_steps-1):
-            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[3][i+1], discount, traj_info[3][i])
+            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], discount, traj_info[3][i])
     
-    #replay_buffer.add(traj_info[0][nb_steps-1], traj_info[1][nb_steps-1],traj_info[2][nb_steps-1], traj_info[3][0], 0, traj_info[3][nb_steps-1])
+    replay_buffer.add(traj_info[0][nb_steps-1], traj_info[1][nb_steps-1],traj_info[2][nb_steps-1], traj_info[0][0], 0, traj_info[3][nb_steps-1])
     
     return dict(
         observations = traj_info[0],
