@@ -7,7 +7,7 @@ from statistics import mean
 from rollout import * 
 from replay_buffer import BaseReplayBuffer
 from networks import actor_critic_net
-import agent  
+from agent  import select_action_discrete
 
 def test_rollout():
     select_action = select_action_discrete
