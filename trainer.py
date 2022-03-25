@@ -54,9 +54,11 @@ class Trainer:
     self.jitted_update = jax.jit(partial(update,self.net.apply,self.opt))
 
   def train(self,nb_steps):
+    nb_stepped = 0
     for i in range(nb_steps):
       #Training Rollout
       data,mean_rew,mean_len = jitted_rollout(self.action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net.apply,self.rng) #rng,params,apply
+      nb_stepped = len(data["actions"])
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
         new_params = self.params
@@ -69,4 +71,6 @@ class Trainer:
         arr = arr.at[a].set(1)
         return arr
       mapped_vectorize = jax.vmap(vectorize,0)
-      print(i,'stats',jnp.mean(mapped_vectorize(data["actions"]),axis=0),mean_rew,mean_len) #Print stats about what's happening during training
+      print("---------- TIMESTEP ",i," - nb_steps ",nb_stepped)
+      print('actions mean proba',jnp.mean(mapped_vectorize(data["actions"]),axis=0))
+      print('mean reward :',mean_rew,' mean len :',mean_len) #Print stats about what's happening during training
