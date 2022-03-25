@@ -12,9 +12,9 @@ import jax
 import jax.numpy as jnp
 
 DEFAULT_CONFIG = {
-  "nb_fit_per_epoch":6,
+  "nb_fit_per_epoch":30,
   "train_batch_size":128,
-  "training_rollout_length":1000,
+  "training_rollout_length":4000,
   "learning_rate":3e-4,
   "clip_eps":0.3,
   "seed": 42,
@@ -51,14 +51,14 @@ class Trainer:
       self.action_function = agent.select_action_discrete
 
     #jitted functions
-    self.jitted_update = jax.jit(partial(update,self.net.apply,self.opt))
+    self.jitted_update = (partial(update,self.net.apply,self.opt))
 
   def train(self,nb_steps):
     nb_stepped = 0
     for i in range(nb_steps):
       #Training Rollout
       data,mean_rew,mean_len = jitted_rollout(self.action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net.apply,self.rng) #rng,params,apply
-      nb_stepped = len(data["actions"])
+      nb_stepped += len(data["actions"])
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
         new_params = self.params

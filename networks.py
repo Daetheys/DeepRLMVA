@@ -35,9 +35,20 @@ def simple_net(out_dim):
 
 def actor_critic_net(out_dim):
     def _wrap(x):
+        policy_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
+                                    hk.Linear(256),jax.nn.tanh,
+                                    hk.Linear(out_dim),jax.nn.softmax])
+        value_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
+                                    hk.Linear(256),jax.nn.tanh,
+                                    hk.Linear(1)])
+        return policy_net(x),value_net(x)
+    return hk.transform(_wrap)
+
+def actor_critic_net_shared(out_dim):
+    def _wrap(x):
         base_net = hk.Sequential([  hk.Linear(256),jax.nn.tanh,
-                                    hk.Linear(256),jax.nn.tanh])
-        policy_head = hk.Sequential([hk.Linear(out_dim),jax.nn.sigmoid])
+                                    hk.Linear(256),jax.nn.tanh,])
+        policy_head = hk.Sequential([hk.Linear(out_dim),jax.nn.softmax])
         value_head = hk.Sequential([hk.Linear(1)])
         base = base_net(x)
         return policy_head(base),value_head(base)

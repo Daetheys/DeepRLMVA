@@ -125,6 +125,6 @@ def test_update():
     log_pi_old = jnp.zeros((15,))
 
     batch = states, actions, log_pi_old, values, targets, advs
-    new_params, new_opt_state = update(params, apply, batch, optimizer, opt_state, clip_eps, params_old, rng)
+    new_params, new_opt_state = update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng)
 
     assert params['linear']['w'].shape == new_params['linear']['w'].shape
