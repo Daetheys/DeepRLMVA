@@ -33,15 +33,29 @@ def build_mlp(hidden_dims,activation):
 def simple_net(out_dim):
     return build_mlp([256,256,out_dim],jax.nn.relu)
 
-def actor_critic_net(out_dim):
-    def _wrap(x):
-        policy_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
-                                    hk.Linear(256),jax.nn.tanh,
-                                    hk.Linear(out_dim),jax.nn.softmax])
-        value_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
-                                    hk.Linear(256),jax.nn.tanh,
-                                    hk.Linear(1)])
-        return policy_net(x),value_net(x)
+def actor_critic_net(out_dim,mode):
+    #Define wrapper
+    if mode == 'discrete':
+        def _wrap(x):
+            policy_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
+                                        hk.Linear(256),jax.nn.tanh,
+                                        hk.Linear(out_dim),jax.nn.softmax])
+            value_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
+                                        hk.Linear(256),jax.nn.tanh,
+                                        hk.Linear(1)])
+            return policy_net(x),value_net(x)
+    else:
+        def _wrap(x):
+            policy_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
+                                        hk.Linear(256),jax.nn.tanh])
+            mean_head = hk.Sequential([hk.Linear(out_dim)])
+            logstd_head = hk.Sequential([hk.Linear(out_dim)])
+            value_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
+                                        hk.Linear(256),jax.nn.tanh,
+                                        hk.Linear(1)])
+            policy_base = policy_net(x)
+            return (mean_head(policy_base),logstd_head(policy_base)),value_net(x)
+
     return hk.transform(_wrap)
 
 def actor_critic_net_shared(out_dim):

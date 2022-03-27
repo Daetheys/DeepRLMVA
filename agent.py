@@ -20,7 +20,7 @@ def select_action_discrete(params, apply, state, rng):
     return actions, value
 
 
-def select_action_continuous(params, apply, state, exploration, rng):
+def select_action_continuous(exploration, params, apply, state, rng): #Mettre en pure
     mu, sigma, value = policy_continuous(params, apply, state, rng)
     if exploration:
         action = mu + sigma * normal(key=rng, shape=mu.shape)
@@ -34,14 +34,14 @@ def loss_actor_critic(params, apply, states, target, actions, clip_eps, params_o
     pi_old, _ = policy_discrete(params_old, apply, states, rng)
     loss_critic = jnp.square(value_predicted - target).mean()
 
-    pis = jax.vmap(lambda a, b: a[b])(pi, actions)
+    pis = jax.vmap(lambda a, b: a[b])(pi, actions)  #A mettre à jour pour le mode continu
     pis_old = jax.vmap(lambda a, b: a[b])(pi_old, actions)
     ratio = pis / pis_old
     loss_actor = jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv).mean()
 
     return loss_critic + loss_actor
 
-def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng):
+def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng): #Jit les fonctions
     """
     :param params: Parameters of the model
     :param apply: forward function applied to the input samples

@@ -8,7 +8,10 @@ class JaxWrapper(gym.Wrapper):
         super().__init__(env)
         self.env = env
     def step(self,a):
-        return self.env.step(np.array(a))
+        a = np.array(a)
+        #a = np.minimum(a,self.action_space.high)
+        #a = np.maximum(a,self.action_space.low)
+        return self.env.step(a)
 
 #----------------------------------------------------------------------
 #
@@ -60,6 +63,9 @@ class ParallelEnv:
         self.envs = [env_creator() for i in range(nb_env)]
         self.obs = np.array([e.observation_space.sample() for e in self.envs])
         self.done = np.array([True for i in range(nb_env)])
+
+        self.observation_space = self.envs[0].observation_space
+        self.action_space = self.envs[0].action_space
 
     def reset(self):
         self.obs = np.array([e.reset() if d else o for e,d,o in zip(self.envs,self.done,self.obs)])
