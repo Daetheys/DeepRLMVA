@@ -41,7 +41,7 @@ def loss_actor_critic(params, apply, states, target, actions, clip_eps, params_o
 
     return loss_critic + loss_actor
 
-def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng): #Jit les fonctions
+def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng):
     """
     :param params: Parameters of the model
     :param apply: forward function applied to the input samples

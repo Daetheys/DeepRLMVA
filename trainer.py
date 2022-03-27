@@ -59,6 +59,8 @@ class Trainer:
     self.opt = optax.sgd(self.config['learning_rate'])
     self.opt_state = self.opt.init(self.params)
 
+    self.jitted_update = partial(update,self.net_apply,self.opt)
+
   def train(self,nb_steps):
     print('Start Training')
     nb_stepped = 0
@@ -70,7 +72,7 @@ class Trainer:
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
         new_params = self.params
-        new_params,self.opt_state = update(self.net_apply,self.opt,new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.rng)
+        new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.rng)
       self.params = new_params
       #Eval Rollout
       data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.rng,add_buffer=False)
