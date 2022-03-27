@@ -16,21 +16,21 @@ def calculate_gaes(rewards, values, gamma=0.99, decay=0.97):
 
     return np.array(gaes[::-1])
 
-def rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply, rng):
+def rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply, rng, add_buffer = True):
     """
     Performs a single rollout.
-    Returns training data in the shape (n_steps, observation_shape)
-    and the cumulative reward.
+    Returns informations in a dict of shape (nb_steps, obs_shape)
+    with mean reward and the mean timestep.
     """
     ### Create data storage
     traj_info = [[], [], [], []] # obs, act, reward, values
     obs = env.reset()
-    #traj_reward = 0
     len_ep = []
     episode_length = 0
+    step = 0
 
     ### Generate a trajectory of length nb_steps
-    for i in range(nb_steps):
+    while step < nb_steps or not done:
         episode_length += 1
         act, value = select_action(params, apply, obs, rng)  # Sample an action , to adapt
         next_obs, reward, done, i = env.step(act)
@@ -40,20 +40,20 @@ def rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply
           traj_info[j].append(item)
 
         obs = next_obs
-        #traj_reward += reward
+        step += 1
         if done:
             len_ep.append(episode_length)
             episode_length = 0
             obs = env.reset()
 
-
     traj_info = [np.asarray(x) for x in traj_info]
     traj_info[3] = calculate_gaes(traj_info[2], traj_info[3])  # Calculate GAES
     
-    for i in range(nb_steps-1):
-            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], discount, traj_info[3][i])
-    
-    replay_buffer.add(traj_info[0][nb_steps-1], traj_info[1][nb_steps-1],traj_info[2][nb_steps-1], traj_info[0][0], 0, traj_info[3][nb_steps-1])
+    if add_buffer: 
+        for i in range(nb_steps-1):
+                replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], discount, traj_info[3][i])
+        
+        replay_buffer.add(traj_info[0][nb_steps-1], traj_info[1][nb_steps-1],traj_info[2][nb_steps-1], traj_info[0][0], 0, traj_info[3][nb_steps-1])
     
     return dict(
         observations = traj_info[0],
