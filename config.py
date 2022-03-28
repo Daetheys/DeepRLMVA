@@ -8,8 +8,8 @@ DEFAULT_TRAINER_CONFIG = {
   "training_rollout_length":4000,
   "testing_rollout_length":1000,
   "policy_learning_rate": 5e-5,
-  "value_learning_rate":1e-2,
-  "clip_eps":0.3,
+  "value_learning_rate":1e-3,
+  "clip_eps":0.1,
   "clip_grad":1.,
   "seed": 42,
   "gamma":0.99

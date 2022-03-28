@@ -56,7 +56,7 @@ class Trainer:
     if isinstance(self.train_env.action_space,gym.spaces.Discrete):
       import agent_discrete as agent
       self.action_function = agent.select_action
-      self.explore_action_function = agent.select_action
+      self.explore_action_function = agent.select_action_and_explore
       self.action_dim = self.train_env.action_space.n
       self.net = self.net_creator(self.action_dim,'discrete')
     else:

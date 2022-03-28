@@ -9,9 +9,14 @@ def policy(params, apply, states, rng):
     pi, value = apply(params, x=states, rng=rng)
     return pi, value
 
-
 def select_action(params, apply, state, rng):
     pi, value = policy(params, apply, state, rng)
+    actions = choice(rng, a=jnp.arange(pi.shape[0]), p=pi)
+    return actions, value
+
+def select_action_and_explore(params, apply, state, rng):
+    pi, value = policy(params, apply, state, rng)
+    pi += 0.05
     actions = choice(rng, a=jnp.arange(pi.shape[0]), p=pi)
     return actions, value
 
