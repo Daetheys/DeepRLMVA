@@ -1,47 +1,37 @@
 import optax
 import jax
 import jax.numpy as jnp
-from jax.random import choice, normal
+from jax.random import choice
 
 
-def policy_discrete(params, apply, states, rng):
+def policy(params, apply, states, rng):
     pi, value = apply(params, x=states, rng=rng)
     return pi, value
 
 
-def policy_continuous(params, apply, states, rng):
-    (mean, std), value = apply(params, x=states, rng=rng)
-    return mean, std, value
-
-
-def select_action_discrete(params, apply, state, rng):
-    pi, value = policy_discrete(params, apply, state, rng)
+def select_action(params, apply, state, rng):
+    pi, value = policy(params, apply, state, rng)
     actions = choice(rng, a=jnp.arange(pi.shape[0]), p=pi)
     return actions, value
 
 
-def select_action_continuous(exploration, params, apply, state, rng): #Mettre en pure
-    mu, sigma, value = policy_continuous(params, apply, state, rng)
-    if exploration:
-        action = mu + sigma * normal(key=rng, shape=mu.shape)
-    else:
-        action = mu
-    return action, value
+def loss_actor_critic(params, apply, states, rewards, discounts, new_observations, actions, clip_eps, params_old, adv, rng):
 
+    pi, value_predicted = policy(params, apply, states, rng)
+    pi_old, _ = policy(params_old, apply, states, rng)
 
-def loss_actor_critic(params, apply, states, rewards, discounts, actions, clip_eps, params_old, adv, rng):
+    _, value_predicted_next = policy(params, apply, new_observations, rng)
+    targets = rewards + discounts * value_predicted_next
 
-    pi, value_predicted = policy_discrete(params, apply, states, rng)
-    pi_old, _ = policy_discrete(params_old, apply, states, rng)
-    targets = rewards + discounts * value_predicted
     loss_critic = jnp.square(value_predicted - targets).mean()
 
-    pis = jax.vmap(lambda a, b: a[b])(pi, actions)  #A mettre à jour pour le mode continu
+    pis = jax.vmap(lambda a, b: a[b])(pi, actions)
     pis_old = jax.vmap(lambda a, b: a[b])(pi_old, actions)
     ratio = pis / pis_old
     loss_actor = jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv).mean()
 
     return loss_critic + loss_actor
+
 
 def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng):
     """
@@ -56,10 +46,10 @@ def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng
     :param optimizer:
     :param rng: random generator
     """
-    states, actions, rewards, _, discounts, advs = batch
+    states, actions, rewards, new_observations, discounts, advs = batch
 
     grad_fn = jax.grad(loss_actor_critic)
-    grads = grad_fn(params, apply, states, rewards, discounts, actions, clip_eps, params_old, advs, rng)
+    grads = grad_fn(params, apply, states, rewards, discounts, new_observations, actions, clip_eps, params_old, advs, rng)
     updates, new_opt_state = optimizer.update(grads, opt_state)
     new_params = optax.apply_updates(params, updates)
 

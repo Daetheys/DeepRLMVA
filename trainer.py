@@ -1,8 +1,8 @@
-import jax
 import optax
 from rollout import rollout
 from agent import update
 from replay_buffer import ReplayBuffer
+from config import DEFAULT_TRAINER_CONFIG
 from functools import partial
 import gym
 import time
@@ -14,19 +14,9 @@ import agent
 import jax
 import jax.numpy as jnp
 
-DEFAULT_CONFIG = {
-  "nb_fit_per_epoch":30,
-  "train_batch_size":128,
-  "training_rollout_length":4000,
-  "testing_rollout_length":1000,
-  "learning_rate":3e-4,
-  "clip_eps":0.3,
-  "seed": 42,
-  "gamma":0.99
-}
 
 class Trainer:
-  def __init__(self,net_creator,env_creator,config=DEFAULT_CONFIG,name=None):
+  def __init__(self,net_creator,env_creator,config=DEFAULT_TRAINER_CONFIG,name=None):
     self.env_creator = env_creator
 
     self.net_creator = net_creator
@@ -68,8 +58,8 @@ class Trainer:
     self.rng = jax.random.PRNGKey(self.config['seed'])
 
     if isinstance(self.train_env.action_space,gym.spaces.Discrete):
-      self.action_function = agent.select_action_discrete
-      self.explore_action_function = agent.select_action_discrete
+      self.action_function = agent.select_action
+      self.explore_action_function = agent.select_action
       self.action_dim = self.train_env.action_space.n
       self.net = self.net_creator(self.action_dim,'discrete')
     else:
