@@ -51,12 +51,25 @@ def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng
 
     grad_fn = jax.grad(loss_actor_critic)
     grads = grad_fn(params, apply, states, rewards, discounts, new_observations, actions, clip_eps, params_old, advs, rng)
-    updates, new_opt_state = optimizer.update(grads, opt_state)
+
+    optimizer_policy,optimizer_value = optimizer
+    
+    #Policy update
+    updates_policy, new_opt_state_policy = optimizer_policy.update(grads, opt_state)
     if not(clip_grad is None):
-        clipped_updates = tree_map(lambda g : jnp.clip(g,-clip_grad,clip_grad),updates)
+        clipped_updates_policy = tree_map(lambda g : jnp.clip(g,-clip_grad,clip_grad),updates_policy)
     else:
-        clipped_updates = updates
-    new_params = optax.apply_updates(params, clipped_updates)
+        clipped_updates_policy = updates_policy
+    new_params = optax.apply_updates(params, clipped_updates_policy)
+
+    #Value update
+    updates_value, new_opt_state_value = optimizer_value.update(grads, opt_state)
+    if not(clip_grad is None):
+        clipped_updates_value = tree_map(lambda g : jnp.clip(g,-clip_grad,clip_grad),updates_value)
+    else:
+        clipped_updates_value = updates_value
+    new_params = optax.apply_updates(new_params, clipped_updates_value)
+
+    new_opt_state = new_opt_state_policy,new_opt_state_value
 
     return new_params, new_opt_state
-

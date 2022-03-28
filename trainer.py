@@ -51,7 +51,7 @@ class Trainer:
     self.train_env = self.env_creator()
     self.eval_env = self.env_creator()
 
-    self.params_rng,self.train_rng,self.test_rng = jax.split(jax.random.PRNGKey(self.config['seed']),3)
+    self.params_rng,self.train_rng,self.test_rng,self.update_rng = jax.random.split(jax.random.PRNGKey(self.config['seed']),4)
 
     if isinstance(self.train_env.action_space,gym.spaces.Discrete):
       import agent_discrete as agent
@@ -69,8 +69,8 @@ class Trainer:
     self.net_init,self.net_apply = jax.jit(self.net.init),jax.jit(self.net.apply)
 
     self.params = self.net_init(x=self.train_env.observation_space.sample(),rng=self.params_rng)
-    self.opt = optax.sgd(self.config['policy_learning_rate'])
-    self.opt_state = self.opt.init(self.params)
+    self.opt = optax.sgd(self.config['policy_learning_rate']),optax.sgd(self.config['value_learning_rate'])
+    self.opt_state = self.opt[0].init(self.params),self.opt[1].init(self.params)
 
     self.jitted_update = partial(agent.update,self.net_apply,self.opt)
 
@@ -85,10 +85,10 @@ class Trainer:
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
         new_params = self.params
-        new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.rng,self.config['clip_grad'])
+        new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.update_rng,self.config['clip_grad'])
       self.params = new_params
       #Eval Rollout
-      #data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.test_rng,add_buffer=False)
+      data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.test_rng,add_buffer=False)
       print("---------- EPOCH ",i," - nb_steps ",nb_stepped)
       print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(data["actions"]),axis=0))
       print('mean reward :',mean_rew,' mean len :',mean_len) #Print stats about what's happening during training
