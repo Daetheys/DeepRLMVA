@@ -4,6 +4,7 @@ import multiprocessing as mp
 import tree
 
 class JaxWrapper(gym.Wrapper):
+    #Wrap the environment for Jax Agents (transforms actions into np.array for gym)
     def __init__(self,env):
         super().__init__(env)
         self.env = env
@@ -20,6 +21,7 @@ class JaxWrapper(gym.Wrapper):
 #----------------------------------------------------------------------
 
 def run_env(env,pipe):
+    """ Run function for parallel workers """
     while True:
         msg = pipe.recv()
         if msg[0] == 1:

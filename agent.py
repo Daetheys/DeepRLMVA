@@ -3,22 +3,18 @@ import jax
 import jax.numpy as jnp
 from jax.random import choice, normal
 
-
 def policy_discrete(params, apply, states, rng):
     pi, value = apply(params, x=states, rng=rng)
     return pi, value
-
 
 def policy_continuous(params, apply, states, rng):
     (mean, std), value = apply(params, x=states, rng=rng)
     return mean, std, value
 
-
 def select_action_discrete(params, apply, state, rng):
     pi, value = policy_discrete(params, apply, state, rng)
     actions = choice(rng, a=jnp.arange(pi.shape[0]), p=pi)
     return actions, value
-
 
 def select_action_continuous(exploration, params, apply, state, rng): #Mettre en pure
     mu, sigma, value = policy_continuous(params, apply, state, rng)
@@ -27,7 +23,6 @@ def select_action_continuous(exploration, params, apply, state, rng): #Mettre en
     else:
         action = mu
     return action, value
-
 
 def loss_actor_critic(params, apply, states, target, actions, clip_eps, params_old, adv, rng):
     pi, value_predicted = policy_discrete(params, apply, states, rng)
@@ -63,4 +58,3 @@ def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng
     new_params = optax.apply_updates(params, updates)
 
     return new_params, new_opt_state
-

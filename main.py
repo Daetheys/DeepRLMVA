@@ -7,7 +7,7 @@ from env_wrapper import *
 if __name__ == '__main__':
     #Build creators
     def env_creator():
-        threaded_env_creator = lambda : ThreadedWrapper(JaxWrapper(gym.make('CartPole-v0')))
+        threaded_env_creator = lambda : ThreadedWrapper(JaxWrapper(gym.make('CartPole-v1')))
         return threaded_env_creator()
         #threaded_env_creator = lambda : ThreadedWrapper(JaxWrapper(gym.make('Pendulum-v1')))
         return ParallelEnv(threaded_env_creator,1)
