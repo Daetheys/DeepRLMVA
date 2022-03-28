@@ -40,7 +40,7 @@ def loss_actor_critic(params, apply, states, rewards, discounts, new_observation
     return loss_critic + loss_actor
 
 
-def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng):
+def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng, clip_grad=None):
     """
     :param params: Parameters of the model
     :param apply: forward function applied to the input samples
@@ -58,7 +58,11 @@ def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng
     grad_fn = jax.grad(loss_actor_critic)
     grads = grad_fn(params, apply, states, rewards, discounts, new_observations, actions, clip_eps, params_old, advs, rng)
     updates, new_opt_state = optimizer.update(grads, opt_state)
-    new_params = optax.apply_updates(params, updates)
+    if not(clip_grad is None):
+        clipped_updates = tree_map(lambda g : jnp.clip(g,-clip_grad,clip_grad),updates)
+    else:
+        clipped_updates = updates
+    new_params = optax.apply_updates(params, clipped_updates)
 
     return new_params, new_opt_state
 
