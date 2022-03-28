@@ -29,10 +29,12 @@ def select_action_continuous(params, apply, state, exploration, rng):
     return action, value
 
 
-def loss_actor_critic(params, apply, states, target, actions, clip_eps, params_old, adv, rng):
+def loss_actor_critic(params, apply, states, rewards, discounts, actions, clip_eps, params_old, adv, rng):
+
     pi, value_predicted = policy_discrete(params, apply, states, rng)
     pi_old, _ = policy_discrete(params_old, apply, states, rng)
-    loss_critic = jnp.square(value_predicted - target).mean()
+    targets = rewards + discounts * value_predicted
+    loss_critic = jnp.square(value_predicted - targets).mean()
 
     pis = jax.vmap(lambda a, b: a[b])(pi, actions)
     pis_old = jax.vmap(lambda a, b: a[b])(pi_old, actions)
@@ -55,11 +57,10 @@ def update(params, apply, batch, optimizer, opt_state, clip_eps, params_old, rng
     :param optimizer:
     :param rng: random generator
     """
-
-    states, actions, log_pi_olds, values, targets, advs = batch
+    states, actions, rewards, _, discounts, advs = batch
 
     grad_fn = jax.grad(loss_actor_critic)
-    grads = grad_fn(params, apply, states, targets, actions, clip_eps, params_old, advs, rng)
+    grads = grad_fn(params, apply, states, rewards, discounts, actions, clip_eps, params_old, advs, rng)
     updates, new_opt_state = optimizer.update(grads, opt_state)
     new_params = optax.apply_updates(params, updates)
 
