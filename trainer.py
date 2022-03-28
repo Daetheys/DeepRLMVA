@@ -1,4 +1,3 @@
-
 import jax
 import optax
 from rollout import rollout
@@ -8,6 +7,7 @@ from functools import partial
 import gym
 import time
 from utils import mapped_vectorize
+import uuid
 
 import agent
 
@@ -26,14 +26,17 @@ DEFAULT_CONFIG = {
 }
 
 class Trainer:
-  def __init__(self,net_creator,env_creator,config=DEFAULT_CONFIG):
+  def __init__(self,net_creator,env_creator,config=DEFAULT_CONFIG,name=None):
     self.env_creator = env_creator
 
     self.net_creator = net_creator
 
     self.config = config
 
-<<<<<<< HEAD
+    self.replay_buffer = ReplayBuffer(1e5)
+
+    self.reset()
+
     self.name = name
     if name is None:
       self.name = str(uuid.uuid4())
@@ -57,23 +60,6 @@ class Trainer:
   def dump_agent_config(self):
     agent_config_file = open(os.path.join('save',self.name,'agent_config.json'),'w')
     json.dump(self.agent.config,agent_config_file)
-
-  #--------------------------------------------------------
-  #
-  #                         TRAIN
-  #
-  #--------------------------------------------------------
-    
-  def train(self,nb_steps):
-    #Saves the config
-    self.dump_configs()
-    for i in range(nb_steps):
-      #Training Rollout
-      rollout(self.train_env,self.agent,self.config['training_rollout_length'],replay_buffer=self.replay_buffer)
-=======
-    self.replay_buffer = ReplayBuffer(1e5)
-
-    self.reset()
 
   def reset(self):
     self.train_env = self.env_creator()
@@ -108,20 +94,14 @@ class Trainer:
       t = time.perf_counter()
       data,mean_rew,mean_len = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.rng)
       nb_stepped += len(data["actions"])
->>>>>>> 54aa7477d37ebf2cc2f367ce15172b0b1ffcf177
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
         new_params = self.params
         new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.rng)
       self.params = new_params
       #Eval Rollout
-<<<<<<< HEAD
-      rollout(self.eval_env,self.agent,self.config['testing_rollout_length'])
-      logger.info("")
-=======
       data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.rng,add_buffer=False)
       print("---------- TIMESTEP ",i," - nb_steps ",nb_stepped)
       print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(data["actions"]),axis=0))
       print('mean reward :',mean_rew,' mean len :',mean_len) #Print stats about what's happening during training
       print('time :',time.perf_counter()-t)
->>>>>>> 54aa7477d37ebf2cc2f367ce15172b0b1ffcf177
