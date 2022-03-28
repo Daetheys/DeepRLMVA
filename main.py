@@ -7,8 +7,10 @@ from env_wrapper import *
 if __name__ == '__main__':
     #Build creators
     def env_creator():
-        threaded_env_creator = lambda : ThreadedWrapper(JaxWrapper(gym.make('Pendulum-v1')))#'Pendulum-v0')))
-        return threaded_env_creator()#ParallelEnv(threaded_env_creator,1)
+        threaded_env_creator = lambda : ThreadedWrapper(JaxWrapper(gym.make('CartPole-v0')))
+        return threaded_env_creator()
+        #threaded_env_creator = lambda : ThreadedWrapper(JaxWrapper(gym.make('Pendulum-v1')))
+        return ParallelEnv(threaded_env_creator,1)
     net_creator = actor_critic_net
 
     #Build Training

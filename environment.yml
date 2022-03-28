@@ -13,3 +13,4 @@ dependencies:
     - optax
     - gym
     - pygame
+    - mujoco-py<2.2,>=2.1
