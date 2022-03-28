@@ -53,7 +53,7 @@ class Trainer:
     self.eval_env = self.env_creator()
 
     #Get the rng key
-    self.params_rng,self.train_rollout_rng,self.test_rollout_rng = jax.split(jax.random.PRNGKey(self.config['seed']),3)
+    self.params_rng,self.train_rollout_rng,self.test_rollout_rng,self.update_rng = jax.random.split(jax.random.PRNGKey(self.config['seed']),4)
 
     #Builds the network depending on the type of environment considered (discrete / continuous action space)
     if isinstance(self.train_env.action_space,gym.spaces.Discrete):
@@ -103,7 +103,7 @@ class Trainer:
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
         new_params = self.params
-        new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.rng)
+        new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.update_rng)
       #Update params
       self.params = new_params
       #Rollout in the test environment to get statistics about the training
