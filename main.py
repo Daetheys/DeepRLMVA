@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-from trainer import Trainer
-from agent import PPOAgent
-import gym
-
-env = gym.make('Reacher-v2')
-agent = PPOAgent()
-
-trainer = Trainer(env,agent)
-trainer.train(1000)
-=======
 from trainer import Trainer,DEFAULT_CONFIG
 import gym
 from networks import actor_critic_net
@@ -27,4 +16,3 @@ if __name__ == '__main__':
 
     #Train
     trainer.train(400)
->>>>>>> 54aa7477d37ebf2cc2f367ce15172b0b1ffcf177
