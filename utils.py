@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import jax
 from functools import partial
-from jax.scipy.stats.multivariate_normal import pdf
+from jax.scipy.stats.multivariate_normal import logpdf
 
 def vectorize(size,a):
     arr = jnp.zeros(size)
@@ -11,17 +11,14 @@ def vectorize(size,a):
 mapped_vectorize = lambda size : jax.vmap(partial(vectorize,size),0)
 
 
-def compute_probability(actions, mean, std):
-
-    print(actions.shape)
-    print(mean.shape)
-    print(std.shape)
+def compute_logprobability(actions, mean, std):
     diag = jax.vmap(jnp.diag)
-    proba = jax.vmap(pdf)
+    proba = jax.vmap(logpdf)
     sigma = diag(std)
     return proba(actions, mean, sigma)
 
-compute_probability_jitted = jax.jit(compute_probability)
+compute_logprobability_jitted = jax.jit(compute_logprobability)
 
-
-
+def clip_action(action,cliprange):
+    act = jnp.minimum(jnp.maximum(action,cliprange[0]),cliprange[1])
+    return act

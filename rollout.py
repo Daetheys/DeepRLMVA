@@ -33,6 +33,9 @@ def rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply
     while step < nb_steps or not done:
         episode_length += 1
         act, value = select_action(params, apply, obs, rng)  # Sample an action , to adapt
+        if np.isnan(act):
+            print(obs,step,act)
+            assert False
         next_obs, reward, done, i = env.step(act)
 
         ### Store Data

@@ -2,7 +2,9 @@ import optax
 import jax
 import jax.numpy as jnp
 from jax.random import normal
-from utils import compute_probability_jitted
+from utils import compute_logprobability_jitted,clip_action
+from jax.tree_util import tree_map
+import numpy as np
 
 
 def policy(params, apply, states, rng):
@@ -10,16 +12,18 @@ def policy(params, apply, states, rng):
     return mean, std, value
 
 
-def select_action(params, apply, state, rng):
+def select_action_and_explore(params, apply, state, rng, cliprange=(-jnp.inf,jnp.inf)):
     mu, sigma, value = policy(params, apply, state, rng)
+    
     action = mu + sigma * normal(key=rng, shape=mu.shape)
-    return action, value
+    
+    return clip_action(action,cliprange), value
 
 
-def select_action_and_explore(params, apply, state, rng):
+def select_action(params, apply, state, rng, cliprange=(-jnp.inf,jnp.inf)):
     mu, sigma, value = policy(params, apply, state, rng)
     action = mu
-    return action, value
+    return clip_action(action,cliprange), value
 
 
 def loss_actor_critic(params, apply, states, rewards, discounts, new_observations, actions, clip_eps, params_old, adv, rng):
@@ -31,15 +35,14 @@ def loss_actor_critic(params, apply, states, rewards, discounts, new_observation
     targets = rewards + discounts * value_predicted_next
     loss_critic = jnp.square(value_predicted - targets).mean()
 
-    pis = compute_probability_jitted(actions, mean, std)
-    pis_old = compute_probability_jitted(actions, mean_old, std_old)
+    logpis = compute_logprobability_jitted(actions, mean, std)
+    logpis_old = compute_logprobability_jitted(actions, mean_old, std_old)
 
-    ratio = pis / pis_old
+    ratio = jnp.exp( logpis - logpis_old )
+
     loss_actor = jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv).mean()
 
     return loss_critic + loss_actor
-
-
 
 def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng, clip_grad=None):
     """
@@ -54,6 +57,7 @@ def update(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng
     :param optimizer:
     :param rng: random generator
     """
+    
     states, actions, rewards, new_observations, discounts, advs = batch
 
     grad_fn = jax.grad(loss_actor_critic)

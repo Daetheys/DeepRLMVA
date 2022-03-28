@@ -1,5 +1,6 @@
 import haiku as hk
 import jax
+import jax.numpy as jnp
 
 #---------------------------------------------------------------------
 #                              Builders
@@ -54,7 +55,11 @@ def actor_critic_net(out_dim,mode='discrete'):
                                         hk.Linear(256),jax.nn.tanh,
                                         hk.Linear(1)])
             policy_base = policy_net(x)
-            return (mean_head(policy_base),logstd_head(policy_base)),value_net(x)
+            mu = mean_head(policy_base)
+            logstd = logstd_head(policy_base)
+            logstd = jnp.clip(logstd,-10,3)
+            std = jnp.exp(logstd)
+            return (mu,std),value_net(x)
 
     return hk.transform(_wrap)
 

@@ -7,8 +7,8 @@ DEFAULT_TRAINER_CONFIG = {
   "train_batch_size":128,
   "training_rollout_length":4000,
   "testing_rollout_length":1000,
-  "learning_rate": 1e-3,
-  "clip_eps":0.3,
+  "learning_rate": 3e-4,
+  "clip_eps":0.1,
   "clip_grad":1.,
   "seed": 42,
   "gamma":0.99
