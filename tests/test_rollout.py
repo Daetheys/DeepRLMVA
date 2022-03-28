@@ -7,11 +7,10 @@ from statistics import mean
 from rollout import *
 from replay_buffer import BaseReplayBuffer
 from networks import actor_critic_net
-from agent import select_action_discrete
+from agent_discrete import select_action
 from env_wrapper import JaxWrapper
 
 def test_rollout():
-    select_action = select_action_discrete
     nb_steps = 50
     replay_buffer = BaseReplayBuffer(5)
     discount = 0.99

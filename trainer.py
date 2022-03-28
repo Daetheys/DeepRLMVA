@@ -1,7 +1,7 @@
-import jax
 import optax
 from rollout import rollout
 from replay_buffer import ReplayBuffer
+from config import DEFAULT_TRAINER_CONFIG
 from functools import partial
 import gym
 import time
@@ -11,19 +11,8 @@ import uuid
 import jax
 import jax.numpy as jnp
 
-DEFAULT_CONFIG = {
-  "nb_fit_per_epoch":30,
-  "train_batch_size":128,
-  "training_rollout_length":4000,
-  "testing_rollout_length":1000,
-  "learning_rate":3e-4,
-  "clip_eps":0.3,
-  "seed": 42,
-  "gamma":0.99
-}
-
 class Trainer:
-  def __init__(self,net_creator,env_creator,config=DEFAULT_CONFIG,name=None):
+  def __init__(self,net_creator,env_creator,config=DEFAULT_TRAINER_CONFIG,name=None):
     self.env_creator = env_creator
 
     self.net_creator = net_creator
@@ -60,8 +49,8 @@ class Trainer:
       #Import the right agent
       import agent_discrete as agent
       #Get the right functions
-      self.action_function = agent.select_action_discrete
-      self.explore_action_function = agent.select_action_discrete
+      self.action_function = agent.select_action
+      self.explore_action_function = agent.select_action
       #Builds the network
       self.action_dim = self.train_env.action_space.n
       self.net = self.net_creator(self.action_dim,'discrete')
@@ -69,8 +58,8 @@ class Trainer:
       #Import the right agent
       import agent_continuous as agent
       #Get the right functions
-      self.action_function = partial(agent.select_action_continuous,False)
-      self.explore_action_function = partial(agent.select_action_continuous,True)
+      self.action_function = agent.select_action_continuous
+      self.explore_action_function = agent.select_action_continuous
       #Builds the network
       self.action_dim = self.train_env.action_space.low.shape[0]
       self.net = self.net_creator(self.action_dim,'continuous')
@@ -103,13 +92,11 @@ class Trainer:
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
         new_params = self.params
-        new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.update_rng)
-      #Update params
+        new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.update_rng,self.config['clip_grad'])
       self.params = new_params
-      #Rollout in the test environment to get statistics about the training
-      data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.test_rollout_rng,add_buffer=False)
-      #Print statistics
-      print("---------- TIMESTEP ",i," - nb_steps ",nb_stepped)
+      #Eval Rollout
+      #data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.test_rng,add_buffer=False)
+      print("---------- EPOCH ",i," - nb_steps ",nb_stepped)
       print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(data["actions"]),axis=0))
       print('mean reward :',mean_rew,' mean len :',mean_len) #Print stats about what's happening during training
       print('time :',time.perf_counter()-t)

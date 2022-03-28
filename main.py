@@ -1,5 +1,5 @@
-from trainer import Trainer,DEFAULT_CONFIG
-import gym
+from trainer import Trainer
+from config import DEFAULT_TRAINER_CONFIG
 from networks import actor_critic_net
 from env_wrapper import *
 
@@ -14,7 +14,7 @@ if __name__ == '__main__':
     net_creator = actor_critic_net
 
     #Build Training
-    trainer = Trainer(net_creator,env_creator,config=DEFAULT_CONFIG)
+    trainer = Trainer(net_creator,env_creator,config=DEFAULT_TRAINER_CONFIG)
 
     #Train
     trainer.train(400)
