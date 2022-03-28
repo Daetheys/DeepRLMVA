@@ -14,7 +14,6 @@ import agent
 import jax
 import jax.numpy as jnp
 
-
 class Trainer:
   def __init__(self,net_creator,env_creator,config=DEFAULT_TRAINER_CONFIG,name=None):
     self.env_creator = env_creator
