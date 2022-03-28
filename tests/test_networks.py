@@ -6,7 +6,7 @@ import jax
 from networks import *
 
 def run_net(net,inp_shape):
-    init,fwd = hk.transform(net)
+    init,fwd = net
     rng = jax.random.PRNGKey(42)
     x = jnp.zeros(inp_shape)
     params = init(rng,x)
@@ -48,3 +48,23 @@ def test_simple_net():
     assert out.shape == (50,5)
     out = run_net(net,(20,21))
     assert out.shape == (20,5)
+
+def test_actor_critic_net():
+    net = actor_critic_net(5)
+    pol_out,val_out = run_net(net,(45,3))
+    assert pol_out.shape == (45,5)
+    assert val_out.shape == (45,1)
+    pol_out,val_out = run_net(net,(23,15))
+    assert pol_out.shape == (23,5)
+    assert val_out.shape == (23,1)
+
+def test_continuous_actor_critic_net():
+    net = continuous_actor_critic_net(5)
+    (mean_out,logstd_out),val_out = run_net(net,(45,3))
+    assert mean_out.shape == (45,5)
+    assert logstd_out.shape == (45,5)
+    assert val_out.shape == (45,1)
+    (mean_out,logstd_out),val_out = run_net(net,(23,15))
+    assert mean_out.shape == (23,5)
+    assert logstd_out.shape == (23,5)
+    assert val_out.shape == (23,1)

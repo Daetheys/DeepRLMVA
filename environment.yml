@@ -10,3 +10,6 @@ dependencies:
     - dm-haiku
     - rlax
     - pytest
+    - optax
+    - gym
+    - pygame
