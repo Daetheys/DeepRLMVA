@@ -3,7 +3,8 @@ DEFAULT_AGENT_CONFIG = {
 }
 
 DEFAULT_TRAINER_CONFIG = {
-  "nb_fit_per_epoch":2048//64,
+  "replay_buffer_size":2048,
+  "nb_fit_per_epoch":2048,
   "train_batch_size":64,
   "training_rollout_length":2048,
   "testing_rollout_length":1000,
@@ -12,7 +13,7 @@ DEFAULT_TRAINER_CONFIG = {
   "value_optimizer":"adam",
   "value_learning_rate": 5e-3,
   "clip_eps":0.2,
-  "clip_grad":None,
+  "clip_grad":0.5,
   "reward_scale":1.,
   "seed": 42,
   "gamma":0.9,

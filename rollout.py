@@ -17,10 +17,10 @@ def calculate_gaes(rewards, values, done, gamma=0.99, decay=0.97):
     for i in reversed(range(len(deltas)-1)):
         gaes.append(deltas[i] + decay * gamma * (1-done[i]) * gaes[-1])
 
-    deltas = np.array(deltas)
+    """deltas = np.array(deltas)
     gaes = np.array(gaes)
         
-    """print("----")
+    print("----")
     print(gamma,decay)
     done = done[:500]
     for (m,r,v,d,g) in zip(done,rewards,values,deltas,gaes[::-1]):
@@ -36,7 +36,7 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
     with mean reward and the mean timestep.
     """
     ### Create data storage
-    traj_info = [[], [], [], [], []] # obs, act, reward, values, done
+    traj_info = [[], [], [], [], [], []] # obs, act, reward, values, done
     obs = env.reset()
     #env.env.env.state = np.array([0.1,0.1])
     #obs,_,_,_ = env.step(np.array([0.1]))
@@ -51,10 +51,14 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
         episode_length += 1
         
         rng,sub_rng = jax.random.split(rng)
-        act = select_action(policy_params, policy_apply, obs, sub_rng)  # Sample an action , to adapt
-        #act = np.array([0.1])
-        rng,sub_rng = jax.random.split(rng)
+        act,logp = select_action(policy_params, policy_apply, obs, sub_rng)  # Sample an action , to adapt
+        #rng,sub_rng = jax.random.split(rng)
         value = value_apply(value_params,x=obs,rng=sub_rng)
+
+        if np.isnan(act):
+            from agent_continuous import policy
+            print(obs,policy(policy_params,policy_apply,obs,sub_rng))
+            assert False
             
         next_obs, reward, done, i = env.step(act)
 
@@ -63,7 +67,7 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
         reward *= reward_scaling
 
         ### Store Data
-        for j, item in enumerate((obs, act, reward, value, done)):
+        for j, item in enumerate((obs, act, reward, value, done, logp)):
           traj_info[j].append(item)
 
         obs = next_obs
@@ -89,11 +93,9 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
     #print(traj_info[3][:,0].tolist())
     #assert False
     
-    if add_buffer: 
+    if add_buffer:
         for i in range(nb_steps-1):
-                replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], gamma*(1-done), traj_info[3][i])
-        
-        replay_buffer.add(traj_info[0][nb_steps-1], traj_info[1][nb_steps-1],traj_info[2][nb_steps-1], traj_info[0][0], gamma*(1-done), traj_info[3][nb_steps-1])
+            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], traj_info[5][i], gamma*(1-traj_info[4][i]), traj_info[3][i])
 
     
     return dict(

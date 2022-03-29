@@ -2,6 +2,7 @@ import collections
 import jax
 import jax.numpy as jnp
 import numpy as np
+from functools import partial
 
 Transition = collections.namedtuple("Transition",
                                     field_names=["obs_tm1", "action_tm1", "reward_t", "obs_t", "discount_t", "gae"])
@@ -36,21 +37,21 @@ class BaseReplayBuffer:
 
         self._memory.append(transition)
 
-    def sample(self):
+    def sample(self,key):
         """Randomly sample a transition from memory."""
         assert self._memory, 'Replay buffer is unfilled. It is impossible to sample from it.'
         transition_idx = np.random.randint(0, len(self._memory))
-        transition = self._memory.pop(transition_idx)
+        transition = self._memory[transition_idx]#self._memory.pop(transition_idx)
 
         return transition
 
 
 class ReplayBuffer(BaseReplayBuffer):
 
-    def sample_batch(self, batch_size):
+    def sample_batch(self, batch_size, key):
         """Randomly sample a batch of experiences from memory."""
         assert len(self._memory) >= batch_size, 'Insufficient number of transitions in replay buffer.'
-        all_transitions = [self.sample() for _ in range(batch_size)]
+        all_transitions = [self.sample(key) for _ in range(batch_size)]
 
         stacked_transitions = []
         for i, _ in enumerate(all_transitions[0]):
