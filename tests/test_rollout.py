@@ -10,6 +10,15 @@ from networks import actor_critic_net
 from agent_discrete import select_action
 from env_wrapper import JaxWrapper
 
+def test_gaes():
+    gamma = 0.99
+    decay = 0.97
+    rewards = np.array([1,1,1,1,1])
+    values = np.array([1,1,1,1,1])
+    advs = calculate_gaes(rewards,values,gamma=gamma,decay=decay)
+    print(advs)
+    assert False
+
 def test_rollout():
     nb_steps = 50
     replay_buffer = BaseReplayBuffer(5)

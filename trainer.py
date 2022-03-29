@@ -12,10 +12,11 @@ import jax
 import jax.numpy as jnp
 
 class Trainer:
-  def __init__(self,net_creator,env_creator,config=DEFAULT_TRAINER_CONFIG,name=None):
+  def __init__(self,policy_net_creator,value_net_creator,env_creator,config=DEFAULT_TRAINER_CONFIG,name=None):
     self.env_creator = env_creator
 
-    self.net_creator = net_creator
+    self.policy_net_creator = policy_net_creator
+    self.value_net_creator = value_net_creator
 
     self.config = config
 
@@ -53,7 +54,7 @@ class Trainer:
       self.explore_action_function = agent.select_action
       #Builds the network
       self.action_dim = self.train_env.action_space.n
-      self.net = self.net_creator(self.action_dim,'discrete')
+      self.policy_net = self.policy_net_creator(self.action_dim,'discrete')
       self.mode = 'discrete'
     else:
       #Import the right agent
@@ -64,21 +65,39 @@ class Trainer:
       self.explore_action_function = partial(agent.select_action_and_explore,cliprange=cliprange)
       #Builds the network
       self.action_dim = self.train_env.action_space.low.shape[0]
-      self.net = self.net_creator(self.action_dim,'continuous')
+      self.policy_net = self.policy_net_creator(self.action_dim,'continuous')
       self.mode = 'continuous'
 
     #Jit the network's functions
-    self.net_init,self.net_apply = (jax.jit(self.net.init),jax.jit(self.net.apply))
+    self.policy_net_init,self.policy_net_apply = (jax.jit(self.policy_net.init),jax.jit(self.policy_net.apply))
 
-    #Intialize network parameters
-    self.params = self.net_init(x=self.train_env.observation_space.sample(),rng=self.params_rng)
+    #Intialize policy network parameters
+    self.policy_params = self.policy_net_init(x=self.train_env.observation_space.sample(),rng=self.params_rng)
 
-    #Builds the optimizer
-    self.opt = optax.sgd(self.config['learning_rate'])
-    self.opt_state = self.opt.init(self.params)
+    #Create the value network
+    self.value_net = self.value_net_creator()
+    self.value_net_init,self.value_net_apply = (jax.jit(self.value_net.init),jax.jit(self.value_net.apply))
+
+    #Intialize value network parameters
+    self.value_params = self.value_net_init(x=self.train_env.observation_space.sample(),rng=self.params_rng)
+    
+
+    #Builds the policy optimizer
+    if self.config['policy_optimizer'] == 'sgd':
+      self.policy_opt = optax.sgd(self.config['policy_learning_rate'])
+    elif self.config['policy_optimizer'] == 'adam':
+      self.policy_opt = optax.adam(self.config['policy_learning_rate'])
+    self.policy_opt_state = self.policy_opt.init(self.policy_params)
+
+    #Builds the value optimizer
+    if self.config['value_optimizer'] == 'sgd':
+      self.value_opt = optax.sgd(self.config['value_learning_rate'])
+    elif self.config['value_optimizer'] == 'adam':
+      self.value_opt = optax.adam(self.config['value_learning_rate'])
+    self.value_opt_state = self.value_opt.init(self.value_params)
 
     #Jit the right update function
-    self.jitted_update = (partial(agent.update,self.net_apply,self.opt))
+    self.jitted_update = (partial(agent.update,self.policy_net_apply,self.value_net_apply,self.policy_opt,self.value_opt))
 
   def train(self,nb_steps):
     print('Start Training')
@@ -88,21 +107,28 @@ class Trainer:
       #-- Training Rollout
       t = time.perf_counter()
       #Rollout in the train environment to fill the replay buffer
-      data,mean_rew,mean_len = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.train_rollout_rng)
+      self.train_rollout_rng,train_rollout_rng = jax.random.split(self.train_rollout_rng)
+      data,mean_rew,mean_len = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,train_rollout_rng,reward_scaling=self.config['reward_scale'])
       #Counts the number of timesteps
       nb_stepped += len(data["actions"])
+      
       #Fits several time using the replay buffer
+      new_policy_params = self.policy_params
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
-        new_params = self.params
-        new_params,self.opt_state = self.jitted_update(new_params,batch,self.opt_state,self.config['clip_eps'],self.params,self.update_rng,self.config['clip_grad'])
-      self.params = new_params
+        self.update_rng,update_rng = jax.random.split(self.update_rng)
+        new_policy_params,self.value_params,self.policy_opt_state,self.value_opt_state = self.jitted_update(new_policy_params,self.value_params,batch,self.policy_opt_state,self.value_opt_state,self.config['clip_eps'],self.policy_params,update_rng,self.config['clip_grad'])
+      self.policy_params = new_policy_params
+      
       #Eval Rollout
-      data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.params,self.net_apply,self.test_rollout_rng,add_buffer=False)
+      self.test_rollout_rng,test_rollout_rng = jax.random.split(self.test_rollout_rng)
+      data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,test_rollout_rng,add_buffer=False)
+
+      #Print stats
       print("---------- EPOCH ",i," - nb_steps ",nb_stepped)
       if self.mode == 'discrete':
         print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(data["actions"]),axis=0))
       else:
-        print('actions mean :',jnp.mean(data["actions"])," var :",jnp.var(data["actions"])," min :",jnp.min(data["actions"])," max:",jnp.max(data["actions"]))
+        print('actions mean :',jnp.mean(data["actions"])," var :",jnp.var(data["actions"])," min :",jnp.min(data["actions"])," max:",jnp.max(data["actions"]),"ex :",data["actions"][:5,0])
       print('mean reward :',mean_rew,' mean len :',mean_len) #Print stats about what's happening during training
       print('time :',time.perf_counter()-t)

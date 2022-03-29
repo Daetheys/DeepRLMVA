@@ -34,30 +34,64 @@ def build_mlp(hidden_dims,activation):
 def simple_net(out_dim):
     return build_mlp([256,256,out_dim],jax.nn.relu)
 
-def actor_critic_net(out_dim,mode='discrete'):
+def actor_net(out_dim,mode='discrete',layer_size=32,min_logstd=-20,max_logstd=0):
     #Define wrapper
     if mode == 'discrete':
         def _wrap(x):
-            policy_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
-                                        hk.Linear(256),jax.nn.tanh,
+            initializer = hk.initializers.RandomUniform(-3e-3,3e-3)
+            policy_net = hk.Sequential([hk.Linear(64),jax.nn.relu,
+                                        hk.Linear(out_dim,w_init=initializer,b_init=initializer),jax.nn.softmax])
+            return policy_net(x)
+    else:
+        def _wrap(x):
+            initializer = hk.initializers.RandomUniform(-3e-3,3e-3)
+            policy_net = hk.Sequential([hk.Linear(layer_size),jax.nn.tanh])
+            mean_head = hk.Sequential([hk.Linear(out_dim,w_init=initializer,b_init=initializer),jax.nn.tanh])
+            logstd_head = hk.Sequential([hk.Linear(out_dim,w_init=initializer,b_init=initializer),jax.nn.tanh])
+            policy_base = policy_net(x)
+            mu = mean_head(policy_base)
+            logstd = logstd_head(policy_base)
+            scaled_logstd = min_logstd+1/2*(max_logstd-min_logstd)*(logstd+1)
+            #logstd = jnp.clip(logstd,-10,2)#*0+0
+            std = jnp.exp(logstd)
+            return mu,std
+
+    return hk.transform(_wrap)
+
+def value_net(layer_size=256):
+    def _wrap(x):
+        initializer = hk.initializers.RandomUniform(-3e-3,3e-3)
+        value_net = hk.Sequential([hk.Linear(layer_size),jax.nn.tanh,
+                                   hk.Linear(layer_size),jax.nn.tanh,
+                                   hk.Linear(1,w_init=initializer,b_init=initializer)])
+        return value_net(x)
+    return hk.transform(_wrap)
+    
+
+def actor_critic_net(out_dim,mode='discrete',layer_size=256):
+    #Define wrapper
+    if mode == 'discrete':
+        def _wrap(x):
+            policy_net = hk.Sequential([hk.Linear(layer_size),jax.nn.tanh,
+                                        hk.Linear(layer_size),jax.nn.tanh,
                                         hk.Linear(out_dim),jax.nn.softmax])
-            value_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
-                                        hk.Linear(256),jax.nn.tanh,
+            value_net = hk.Sequential([hk.Linear(layer_size),jax.nn.tanh,
+                                        hk.Linear(layer_size),jax.nn.tanh,
                                         hk.Linear(1)])
             return policy_net(x),value_net(x)
     else:
         def _wrap(x):
-            policy_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
-                                        hk.Linear(256),jax.nn.tanh])
+            policy_net = hk.Sequential([hk.Linear(layer_size),jax.nn.tanh,
+                                        hk.Linear(layer_size),jax.nn.tanh])
             mean_head = hk.Sequential([hk.Linear(out_dim)])
             logstd_head = hk.Sequential([hk.Linear(out_dim)])
-            value_net = hk.Sequential([hk.Linear(256),jax.nn.tanh,
-                                        hk.Linear(256),jax.nn.tanh,
+            value_net = hk.Sequential([hk.Linear(layer_size),jax.nn.tanh,
+                                        hk.Linear(layer_size),jax.nn.tanh,
                                         hk.Linear(1)])
             policy_base = policy_net(x)
             mu = mean_head(policy_base)
             logstd = logstd_head(policy_base)
-            logstd = jnp.clip(logstd,-10,3)
+            logstd = jnp.clip(logstd,-10,2)#*0+0
             std = jnp.exp(logstd)
             return (mu,std),value_net(x)
 
