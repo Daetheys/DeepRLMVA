@@ -12,6 +12,7 @@ mapped_vectorize = lambda size : jax.vmap(partial(vectorize,size),0)
 
 
 def compute_logprobability(actions, mean, std):
+    std = std**2
     diag = jax.vmap(jnp.diag)
     proba = jax.vmap(logpdf)
     sigma = diag(std)

@@ -73,7 +73,7 @@ def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp
 
     loss_actor = loss_actor.mean()
 
-    return loss_actor #+ kl_coeff*kl - entropy_coeff*entropy
+    return loss_actor + kl_coeff*kl - entropy_coeff*entropy
 
 def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_params, value_params, batch, policy_opt_state, value_opt_state, clip_eps, kl_coeff, entropy_coeff, rng):
     """

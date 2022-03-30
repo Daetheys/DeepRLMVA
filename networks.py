@@ -34,7 +34,7 @@ def build_mlp(hidden_dims,activation):
 def simple_net(out_dim):
     return build_mlp([256,256,out_dim],jax.nn.relu)
 
-def actor_net(out_dim,mode='discrete',layer_size=32,min_logstd=-20,max_logstd=0):
+def actor_net(out_dim,mode='discrete',layer_size=32,min_logstd=-1,max_logstd=-1):
     #Define wrapper
     if mode == 'discrete':
         def _wrap(x):
