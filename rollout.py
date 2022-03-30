@@ -17,14 +17,16 @@ def calculate_gaes(rewards, values, done, gamma=0.99, decay=0.97):
     for i in reversed(range(len(deltas)-1)):
         gaes.append(deltas[i] + decay * gamma * (1-done[i]) * gaes[-1])
 
-    """deltas = np.array(deltas)
+    deltas = np.array(deltas)
     gaes = np.array(gaes)
         
-    print("----")
+    """print("----")
     print(gamma,decay)
     done = done[:500]
     for (m,r,v,d,g) in zip(done,rewards,values,deltas,gaes[::-1]):
-        print(m,r,v,d,g)
+        print(v.dtype)
+        assert False
+        print(m,r,v[0].item(),d,g)
     assert False"""
 
     return np.array(gaes[::-1])
@@ -55,11 +57,6 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
         #rng,sub_rng = jax.random.split(rng)
         value = value_apply(value_params,x=obs,rng=sub_rng)
 
-        if np.isnan(act):
-            from agent_continuous import policy
-            print(obs,policy(policy_params,policy_apply,obs,sub_rng))
-            assert False
-            
         next_obs, reward, done, i = env.step(act)
 
         reward_ep += reward
@@ -82,20 +79,12 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
             #obs,_,_,_ = env.step(np.array([0.1]))
 
     traj_info = [np.asarray(x) for x in traj_info]
-    #print(traj_info[0])
-    #print(traj_info[1])
-    #print(traj_info[2])
-    #assert False
-    #print(traj_info[3])
     
-    traj_info[3] = calculate_gaes(traj_info[2], traj_info[3], traj_info[4],gamma=gamma,decay=decay)  # Calculate GAES
-
-    #print(traj_info[3][:,0].tolist())
-    #assert False
+    gaes = calculate_gaes(traj_info[2], traj_info[3], traj_info[4],gamma=gamma,decay=decay)  # Calculate GAES
     
     if add_buffer:
         for i in range(nb_steps-1):
-            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], traj_info[5][i], gamma*(1-traj_info[4][i]), traj_info[3][i])
+            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], traj_info[5][i], gamma*(1-traj_info[4][i]), gaes[i], traj_info[3][i])
 
     
     return dict(

@@ -20,8 +20,6 @@ def compute_logprobability(actions, mean, std):
 compute_logprobability_jitted = jax.jit(compute_logprobability)
 
 def scale_action(action,cliprange):
-    if jnp.isnan(cliprange[0]) or jnp.isnan(cliprange[1]):
-        return act
     act = cliprange[0]+1/2*(cliprange[1]-cliprange[0])*(action+1)
     return act
 

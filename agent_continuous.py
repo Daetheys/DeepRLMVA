@@ -16,9 +16,11 @@ def select_action_and_explore(params, apply, state, rng, cliprange=(-jnp.inf,jnp
     mean,std = policy(params, apply, state, rng)
 
     action = mean + std * jax.random.normal(rng,mean.shape)
-    action = clip_action(scale_action(action,cliprange),cliprange)
-    
+
+    #action = np.array([0.1]) #DEBUG
     logp = compute_logprobability_jitted(action[None], mean[None], std[None])
+    
+    #scaled_action = clip_action(scale_action(action,cliprange),cliprange)
     
     return action,logp
 
@@ -27,9 +29,10 @@ def select_action(params, apply, state, rng, cliprange=(-jnp.inf,jnp.inf)):
     mean, std = policy(params, apply, state, rng)
     
     action = mean
-    action = clip_action(scale_action(action,cliprange),cliprange)
-
     logp = compute_logprobability_jitted(action[None], mean[None], std[None])
+    
+    #action = clip_action(scale_action(action,cliprange),cliprange)
+
     
     return action,logp
 
@@ -43,45 +46,36 @@ def checkz(p):
         assert False
     return p
 
-def loss_critic(value_params,value_apply,states,adv,rng):
+def loss_critic(value_params,value_apply,states,adv,values,rng):
     
     value_predicted = value_apply(value_params,x=states,rng=rng)
 
-    targets = adv + value_predicted#(rewards + discounts * value_predicted_next[:,0])
-
-    targets = jax.lax.stop_gradient(targets)
+    targets = adv + values#(rewards + discounts * value_predicted_next[:,0])
 
     loss_critic = jnp.square(value_predicted - targets).mean() #adv**2 ?
 
     return loss_critic
 
-def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,policy_params_old,logp,adv,rng):
+def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logpis_old,adv,kl_coeff,entropy_coeff,rng):
     rng,srng = jax.random.split(rng)
     mean, std = policy(policy_params, policy_apply, states, srng)
-    
-    #rng,srng = jax.random.split(rng)
-    #mean_old, std_old = policy(policy_params_old, policy_apply, states, srng)
 
     logpis = compute_logprobability_jitted(actions, mean, std)
-    #logpis_old = compute_logprobability_jitted(actions, mean_old, std_old)
-    #logpis_old = jax.lax.stop_gradient(logpis_old) #Useless in theory
     
-    log_ratio = logpis - logp#is_old
+    log_ratio = logpis - logpis_old
     ratio = jnp.exp( log_ratio )[:,None]
-
-    #adv = jax.lax.stop_gradient(adv) #Useless in theory
-
-    #tree_map(check,logpis)
-    #tree_map(check,logpis_old)
-    #tree_map(check,ratio)
 
     loss_actor = -jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv)
 
+    kl = logpis.mean()
+
+    entropy = jnp.log(std).mean()
+
     loss_actor = loss_actor.mean()
 
-    return loss_actor
+    return loss_actor #+ kl_coeff*kl - entropy_coeff*entropy
 
-def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_params, value_params, batch, policy_opt_state, value_opt_state, clip_eps, policy_params_old, rng):
+def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_params, value_params, batch, policy_opt_state, value_opt_state, clip_eps, kl_coeff, entropy_coeff, rng):
     """
     :param params: Parameters of the model
     :param apply: forward function applied to the input samples
@@ -95,12 +89,12 @@ def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_
     :param rng: random generator
     """
     
-    states, actions, rewards, new_observations, logp, discounts, advs = batch
+    states, actions, rewards, new_observations, logp, discounts, advs, values = batch
 
     #Update critic
     value_grad_fn = jax.value_and_grad(loss_critic)
     rng,srng = jax.random.split(rng)
-    value_loss,value_grads = value_grad_fn(value_params, value_apply, states, advs, srng)
+    value_loss,value_grads = value_grad_fn(value_params, value_apply, states, advs, values, srng)
 
 
     value_updates, new_value_opt_state = value_optimizer.update(value_grads,value_opt_state)
@@ -109,7 +103,7 @@ def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_
     #Update actor
     policy_grad_fn = jax.value_and_grad(loss_actor)
     rng,srng = jax.random.split(rng)
-    policy_loss,policy_grads = policy_grad_fn(policy_params,policy_apply,states,discounts,actions,clip_eps,policy_params_old,logp,advs,srng)
+    policy_loss,policy_grads = policy_grad_fn(policy_params,policy_apply,states,discounts,actions,clip_eps,logp,advs,kl_coeff,entropy_coeff,srng)
 
     policy_updates, new_policy_opt_state = policy_optimizer.update(policy_grads,policy_opt_state)
     new_policy_params = optax.apply_updates(policy_params,policy_updates)
@@ -196,28 +190,6 @@ def loss_actor_critic(policy_params, value_params, policy_apply, value_apply, st
     loss = loss_critic + loss_actor
 
     return loss
-
-def print_loss_actor_critic(params, apply, states, rewards, discounts, new_observations, actions, clip_eps, params_old, adv, rng):
-
-    mean, std, value_predicted = policy(params, apply, states, rng)
-    mean_old, std_old, _ = policy(params_old, apply, states, rng)
-
-    _, _,  value_predicted_next = policy(params, apply, new_observations, rng)
-    targets = adv + value_predicted#(rewards + discounts * value_predicted_next[:,0])
-
-    print(targets[:5,0],value_predicted[:5,0])
-
-    loss_critic = jnp.square(value_predicted - targets).mean()
-
-    logpis = compute_logprobability_jitted(actions, mean, std)
-    logpis_old = compute_logprobability_jitted(actions, mean_old, std_old)
-
-    ratio = jnp.exp( logpis - logpis_old )[:,None]
-
-    loss_actor = -jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv).mean()
-
-    print(loss_critic,loss_actor)
-
 
 def update2(apply, optimizer, params, batch, opt_state, clip_eps, params_old, rng, clip_grad=None):
     """

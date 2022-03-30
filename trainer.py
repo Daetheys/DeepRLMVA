@@ -41,7 +41,7 @@ class Trainer:
     #Build environments
     self.train_env = self.env_creator()
     self.eval_env = self.env_creator()
-
+    
     #Create the replay buffer
     self.replay_buffer = ReplayBuffer(self.config["replay_buffer_size"],self.train_env)
 
@@ -112,6 +112,7 @@ class Trainer:
     #Jit the right update function
     self.jitted_update = jax.jit(partial(agent.update,self.policy_net_apply,self.value_net_apply,self.policy_opt,self.value_opt))
 
+
   def train(self,nb_steps):
     print('Start Training')
     #Counts the current timestep
@@ -124,49 +125,37 @@ class Trainer:
       
       #Rollout in the train environment to fill the replay buffer
       self.train_rollout_rng,train_rollout_rng = jax.random.split(self.train_rollout_rng)
-      data,mean_rew,mean_len = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,train_rollout_rng,reward_scaling=self.config['reward_scale'])
+      train_data,mean_rew,mean_len = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,train_rollout_rng,reward_scaling=self.config['reward_scale'])
       
       #Counts the number of timesteps
-      nb_stepped += len(data["actions"])
+      nb_stepped += len(train_data["actions"])
       
       #Fits several time using the replay buffer
       policy_losses = []
       value_losses = []
-      new_policy_params = self.policy_params
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
-        
+
         self.update_rng,update_rng = jax.random.split(self.update_rng)
-        new_policy_params,self.value_params,self.policy_opt_state,self.value_opt_state,policy_loss,value_loss = self.jitted_update(new_policy_params,self.value_params,batch,self.policy_opt_state,self.value_opt_state,self.config['clip_eps'],self.policy_params,update_rng)
+        self.policy_params,self.value_params,self.policy_opt_state,self.value_opt_state,policy_loss,value_loss = self.jitted_update(self.policy_params,self.value_params,batch,self.policy_opt_state,self.value_opt_state,self.config['clip_eps'],self.config["kl_coeff"],self.config["entropy_coeff"],update_rng)
         
         policy_losses.append(policy_loss)
         value_losses.append(value_loss)
-      #Saves the new params
-      self.policy_params = new_policy_params
 
-      print("------------------------------")
-      if self.mode == 'discrete':
-        print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(data["actions"]),axis=0))
-      else:
-        print('actions mean :',jnp.mean(data["actions"])," std :",jnp.std(data["actions"])," min :",jnp.min(data["actions"])," max:",jnp.max(data["actions"]))
-        print("ex :",data["observations"][:10])
-        print("ex :",data["actions"][:10,0])
-
-      print('policy loss - mean:',jnp.mean(jnp.array(policy_losses)),'std:',jnp.std(jnp.array(policy_losses)))
-      print('value loss - mean:',jnp.mean(jnp.array(value_losses)),'std:',jnp.std(jnp.array(value_losses)))
+      #Empty the replay buffer (not necessary - just to be sure)
+      self.replay_buffer.empty()
       
       #Eval Rollout (doesn't put trajectories in the replay buffer)
       self.test_rollout_rng,test_rollout_rng = jax.random.split(self.test_rollout_rng)
-      data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,test_rollout_rng,add_buffer=False)
+      test_data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,test_rollout_rng,add_buffer=False)
 
       #Print stats
       print("---------- EPOCH ",i," - nb_steps ",nb_stepped)
       if self.mode == 'discrete':
         print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(data["actions"]),axis=0))
       else:
-        print('actions mean :',jnp.mean(data["actions"])," std :",jnp.std(data["actions"])," min :",jnp.min(data["actions"])," max:",jnp.max(data["actions"]))
-        print("ex :",data["observations"][:10])
-        print("ex :",data["actions"][:10,0])
+        print('TRAIN actions mean :',jnp.mean(train_data["actions"])," std :",jnp.std(train_data["actions"])," min :",jnp.min(train_data["actions"])," max:",jnp.max(train_data["actions"]))
+        print('TEST actions mean :',jnp.mean(test_data["actions"])," std :",jnp.std(test_data["actions"])," min :",jnp.min(test_data["actions"])," max:",jnp.max(test_data["actions"]))
       print('policy loss - mean:',jnp.mean(jnp.array(policy_losses)),'std:',jnp.std(jnp.array(policy_losses)))
       print('value loss - mean:',jnp.mean(jnp.array(value_losses)),'std:',jnp.std(jnp.array(value_losses)))
       print('mean reward :',mean_rew,' mean len :',mean_len) #Print stats about what's happening during training

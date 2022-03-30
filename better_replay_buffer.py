@@ -3,19 +3,26 @@ import numpy as np
 import collections
 
 Transition = collections.namedtuple("Transition",
-                                    field_names=["obs", "act", "rew", "nobs", "logp","discount", "gae"])
+                                    field_names=["obs", "act", "rew", "nobs", "logp","discount", "gae","values"])
 
 class ReplayBuffer:
     def __init__(self,maxlen,env):
         self.maxlen = maxlen
+        self.env = env
 
+        self.empty()
+
+    def empty(self):
+        maxlen = self.maxlen
+        env = self.env
         self.fields = {"obs":np.zeros((maxlen,)+env.observation_space.low.shape),
                        "act":np.zeros((maxlen,)+env.action_space.low.shape),
                        "logp":np.zeros((maxlen,)+(1,)),
                        "nobs":np.zeros((maxlen,)+env.observation_space.low.shape),
                        "rew":np.zeros((maxlen,)+(1,)),
                        "discount":np.zeros((maxlen,)+(1,)),
-                       "gae":np.zeros((maxlen,)+(1,))
+                       "gae":np.zeros((maxlen,)+(1,)),
+                       "values":np.zeros((maxlen,)+(1,))
                        }
 
         self.cursor = 0

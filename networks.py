@@ -34,39 +34,77 @@ def build_mlp(hidden_dims,activation):
 def simple_net(out_dim):
     return build_mlp([256,256,out_dim],jax.nn.relu)
 
-def actor_net(out_dim,mode='discrete',layer_size=32,min_logstd=-5,max_logstd=0):
+def actor_net(out_dim,mode='discrete',layer_size=32,min_logstd=-20,max_logstd=0):
     #Define wrapper
     if mode == 'discrete':
         def _wrap(x):
             initializer = hk.initializers.RandomUniform(-3e-3,3e-3)
-            policy_net = hk.Sequential([hk.Linear(64),jax.nn.relu,
-                                        hk.Linear(out_dim,w_init=initializer,b_init=initializer),jax.nn.softmax])
+            init = hk.initializers.Constant(1.)
+            policy_net = hk.Sequential([hk.Linear(layer_size,w_init=init),jax.nn.relu,
+                                        hk.Linear(out_dim,w_init=init,b_init=init),jax.nn.softmax])
             return policy_net(x)
     else:
         def _wrap(x):
-            initializer = hk.initializers.RandomUniform(-3e-3,3e-3)
-            policy_net = hk.Sequential([hk.Linear(layer_size),jax.nn.tanh])
-            mean_head = hk.Sequential([hk.Linear(out_dim,w_init=initializer,b_init=initializer),jax.nn.tanh])
-            logstd_head = hk.Sequential([hk.Linear(out_dim,w_init=initializer,b_init=initializer),jax.nn.tanh])
+            init = hk.initializers.RandomUniform(-3e-3,3e-3)
+            #init = hk.initializers.Constant(1.)
+            policy_net = hk.Sequential([hk.Linear(layer_size),jax.nn.relu])
+            mean_head = hk.Sequential([hk.Linear(out_dim,w_init=init,b_init=init),jax.nn.tanh])
+            logstd_head = hk.Sequential([hk.Linear(out_dim,w_init=init,b_init=init),jax.nn.tanh])
             policy_base = policy_net(x)
             mu = mean_head(policy_base)
             logstd = logstd_head(policy_base)
             scaled_logstd = min_logstd+1/2*(max_logstd-min_logstd)*(logstd+1)
-            #logstd = jnp.clip(logstd,-10,2)#*0+0
             std = jnp.exp(scaled_logstd)
             return mu,std
 
     return hk.transform(_wrap)
 
-def value_net(layer_size=256):
+def value_net(layer_size=64):
     def _wrap(x):
-        initializer = hk.initializers.RandomUniform(-3e-3,3e-3)
-        value_net = hk.Sequential([hk.Linear(layer_size),jax.nn.tanh,
-                                   hk.Linear(layer_size),jax.nn.tanh,
-                                   hk.Linear(1,w_init=initializer,b_init=initializer)])
+        init = hk.initializers.RandomUniform(-3e-3,3e-3)
+        #init = hk.initializers.Constant(1.)
+        value_net = hk.Sequential([hk.Linear(layer_size),jax.nn.relu,
+                                   hk.Linear(1,w_init=init,b_init=init)])
         return value_net(x)
     return hk.transform(_wrap)
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def actor_critic_net(out_dim,mode='discrete',layer_size=256):
     #Define wrapper

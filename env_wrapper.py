@@ -2,16 +2,17 @@ import numpy as np
 import gym
 import multiprocessing as mp
 import tree
+from utils import scale_action,clip_action
 
-class JaxWrapper(gym.Wrapper):
+class ActionScalingWrapper(gym.Wrapper):
     #Wrap the environment for Jax Agents (transforms actions into np.array for gym)
     def __init__(self,env):
         super().__init__(env)
         self.env = env
+        self.clip_range = self.action_space.low,self.action_space.high
     def step(self,a):
         a = np.array(a)
-        #a = np.minimum(a,self.action_space.high)
-        #a = np.maximum(a,self.action_space.low)
+        a = clip_action(scale_action(a,self.clip_range),self.clip_range)
         return self.env.step(a)
 
 #----------------------------------------------------------------------
