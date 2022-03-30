@@ -34,39 +34,68 @@ def build_mlp(hidden_dims,activation):
 def simple_net(out_dim):
     return build_mlp([256,256,out_dim],jax.nn.relu)
 
-def actor_net(out_dim,mode='discrete',layer_size=32,min_logstd=-1,max_logstd=-1):
+
+def actor_net(out_dim,mode='discrete',layer_size=64):
+    def _wrap(x):
+        init_hidden = hk.initializers.Orthogonal(scale=1.)
+        init_out = hk.initializers.Orthogonal(scale=0.01)
+        mu = hk.Sequential([hk.Linear(layer_size,w_init=init_hidden),jnp.tanh,
+                            hk.Linear(layer_size,w_init=init_hidden),jnp.tanh,
+                            hk.Linear(out_dim,w_init=init_out)])(x)
+        logstd = hk.get_parameter('log_std', (1,out_dim),init=jnp.zeros)
+        return mu,logstd
+    return hk.without_apply_rng(hk.transform(_wrap))
+
+def value_net(layer_size=64):
+    def _wrap(x):
+        init_hidden = hk.initializers.Orthogonal(scale=1.)
+        init_out = hk.initializers.Orthogonal(scale=1.)
+        val = hk.Sequential([hk.Linear(layer_size,w_init=init_hidden),jnp.tanh,
+                            hk.Linear(layer_size,w_init=init_hidden),jnp.tanh,
+                            hk.Linear(1,w_init=init_out)])(x)
+        return val
+    return hk.without_apply_rng(hk.transform(_wrap))
+
+
+
+def actor_net2(out_dim,mode='discrete',layer_size=64,min_logstd=-20,max_logstd=2):
     #Define wrapper
     if mode == 'discrete':
         def _wrap(x):
-            initializer = hk.initializers.RandomUniform(-3e-3,3e-3)
-            init = hk.initializers.Constant(1.)
-            policy_net = hk.Sequential([hk.Linear(layer_size,w_init=init),jax.nn.relu,
+            #init = hk.initializers.RandomUniform(-3e-3,3e-3)
+            init = hk.initializers.Constant(0.)
+            policy_net = hk.Sequential([hk.Linear(layer_size),jax.nn.relu,
+                                        hk.Linear(layer_size),jax.nn.relu,
                                         hk.Linear(out_dim,w_init=init,b_init=init),jax.nn.softmax])
             return policy_net(x)
     else:
         def _wrap(x):
-            init = hk.initializers.RandomUniform(-3e-3,3e-3)
-            #init = hk.initializers.Constant(1.)
-            policy_net = hk.Sequential([hk.Linear(layer_size),jax.nn.relu])
-            mean_head = hk.Sequential([hk.Linear(out_dim,w_init=init,b_init=init),jax.nn.tanh])
-            logstd_head = hk.Sequential([hk.Linear(out_dim,w_init=init,b_init=init),jax.nn.tanh])
+            #init = hk.initializers.RandomUniform(-3e-3,3e-3)
+            init_hidden = hk.initializers.Orthogonal(scale=1.)
+            init_out = hk.initializers.Orthogonal(scale=0.001)
+            policy_net = hk.Sequential([hk.Linear(layer_size,w_init=init_hidden),jnp.tanh,
+                                        hk.Linear(layer_size,w_init=init_out),jnp.tanh])
+            mean_head = hk.Sequential([hk.Linear(out_dim)])
+            logstd_head = hk.Sequential([hk.Linear(out_dim,w_init=init,b_init=init)])
             policy_base = policy_net(x)
             mu = mean_head(policy_base)
             logstd = logstd_head(policy_base)
-            scaled_logstd = min_logstd+1/2*(max_logstd-min_logstd)*(logstd+1)
-            std = jnp.exp(scaled_logstd)
-            return mu,std
+            #scaled_logstd = min_logstd+1/2*(max_logstd-min_logstd)*(jnp.tanh(logstd)+1)
+            #clipped_logstd = jnp.clip(logstd,min_logstd,max_logstd)
+            #std = jnp.exp(scaled_logstd)
+            return mu,logstd
 
-    return hk.transform(_wrap)
+    return hk.without_apply_rng(hk.transform(_wrap))
 
-def value_net(layer_size=64):
+def value_net2(layer_size=64):
     def _wrap(x):
         init = hk.initializers.RandomUniform(-3e-3,3e-3)
         #init = hk.initializers.Constant(1.)
         value_net = hk.Sequential([hk.Linear(layer_size),jax.nn.relu,
+                                   hk.Linear(layer_size),jax.nn.relu,
                                    hk.Linear(1,w_init=init,b_init=init)])
         return value_net(x)
-    return hk.transform(_wrap)
+    return hk.without_apply_rng(hk.transform(_wrap))
 
 
 

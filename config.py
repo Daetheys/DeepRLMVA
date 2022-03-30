@@ -3,22 +3,22 @@ DEFAULT_AGENT_CONFIG = {
 }
 
 DEFAULT_TRAINER_CONFIG = {
-    "nb_fit_per_epoch":2048,
+    "nb_fit_per_epoch":10*2048//64,
     "train_batch_size":64,
     "training_rollout_length":2048,
     "testing_rollout_length":1000,
     "policy_optimizer":"adam",
-    "policy_learning_rate": 1e-3,
+    "policy_learning_rate": 3e-4,
     "value_optimizer":"adam",
-    "value_learning_rate": 5e-3,
+    "value_learning_rate": 3e-4,
     "kl_coeff":0.0,
     "entropy_coeff":0.0,
     "clip_eps":0.2,
-    "clip_grad":0.5,
+    "clip_grad":10.,
     "reward_scale":1.,
-    "seed": 42,
-    "gamma":0.9,
-    "decay":0.8,
+    "seed": 0,
+    "gamma":0.995,
+    "decay":0.97,
     "replay_buffer_size":2084,
 }
 

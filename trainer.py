@@ -12,6 +12,8 @@ from optax._src import combine,clipping
 import jax
 import jax.numpy as jnp
 import time
+import haiku as hk
+import numpy as np
 
 class Trainer:
   def __init__(self,policy_net_creator,value_net_creator,env_creator,config=DEFAULT_TRAINER_CONFIG,name=None):
@@ -38,15 +40,20 @@ class Trainer:
     json.dump(self.config,trainer_config_file)
 
   def reset(self):
+    
     #Build environments
     self.train_env = self.env_creator()
     self.eval_env = self.env_creator()
+
+    #Get the rng key
+    self.rng = hk.PRNGSequence(self.config['seed'])
+    np.random.seed(self.config['seed'])
+
+    self.train_env.seed(self.config['seed'])
+    self.eval_env.seed(2**31-self.config['seed'])
     
     #Create the replay buffer
     self.replay_buffer = ReplayBuffer(self.config["replay_buffer_size"],self.train_env)
-
-    #Get the rng key
-    self.params_rng,self.train_rollout_rng,self.test_rollout_rng,self.update_rng = jax.random.split(jax.random.PRNGKey(self.config['seed']),4)
 
     #Builds the network depending on the type of environment considered (discrete / continuous action space)
     if isinstance(self.train_env.action_space,gym.spaces.Discrete):
@@ -71,18 +78,30 @@ class Trainer:
       self.policy_net = self.policy_net_creator(self.action_dim,'continuous')
       self.mode = 'continuous'
 
+    #Create the value network
+    self.value_net = self.value_net_creator()
+    #self.value_net_init,self.value_net_apply = (jax.jit(self.value_net.init),jax.jit(self.value_net.apply))
+    self.value_net_init,self.value_net_apply = (self.value_net.init,self.value_net.apply)
+
+    #Intialize value network parameters
+    self.value_params = self.value_net_init(x=self.train_env.observation_space.sample(),rng=next(self.rng))
+
     #Jit the network's functions
     self.policy_net_init,self.policy_net_apply = (jax.jit(self.policy_net.init),jax.jit(self.policy_net.apply))
 
     #Intialize policy network parameters
-    self.policy_params = self.policy_net_init(x=self.train_env.observation_space.sample(),rng=self.params_rng)
+    self.policy_params = self.policy_net_init(x=self.train_env.observation_space.sample(),rng=next(self.rng))
 
-    #Create the value network
-    self.value_net = self.value_net_creator()
-    self.value_net_init,self.value_net_apply = (jax.jit(self.value_net.init),jax.jit(self.value_net.apply))
+    """print("Checkpoint VALUE NETWORK")
+    x = jnp.ones((1,3))
+    out = self.value_net_apply(self.value_params,x)
+    print(out)
 
-    #Intialize value network parameters
-    self.value_params = self.value_net_init(x=self.train_env.observation_space.sample(),rng=self.params_rng)
+    print("Checkpoint ACTOR NETWORK")
+    x = jnp.ones((1,3))
+    out = self.policy_net_apply(self.policy_params,x)
+    print(out)
+    assert False"""
     
 
     #Builds the policy optimizer
@@ -124,26 +143,58 @@ class Trainer:
       t = time.perf_counter()
       
       #Rollout in the train environment to fill the replay buffer
-      self.train_rollout_rng,train_rollout_rng = jax.random.split(self.train_rollout_rng)
-      train_data,mean_rew,mean_len = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,train_rollout_rng,reward_scaling=self.config['reward_scale'])
+      train_data,mean_rew,mean_len = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,self.rng,reward_scaling=self.config['reward_scale'])
       
       #Counts the number of timesteps
       nb_stepped += len(train_data["actions"])
+
+      print('CHECKPOINT REPLAY BUFFER')
+      for s,a,r,d,logp,ns,g,t in zip(
+          self.replay_buffer.fields['obs'][:10],
+          self.replay_buffer.fields['act'][:10],
+          self.replay_buffer.fields['rew'][:10],
+          self.replay_buffer.fields['discount'][:10],
+          self.replay_buffer.fields['logp'][:10],
+           self.replay_buffer.fields['nobs'][:10],
+          self.replay_buffer.fields['gae'][:10],
+          self.replay_buffer.fields['gae'][:10]+self.replay_buffer.fields['values'][:10]):
+        print(s,a,r,d,logp,ns,g,t)
+        
+      assert False
       
       #Fits several time using the replay buffer
       policy_losses = []
       value_losses = []
       for j in range(self.config['nb_fit_per_epoch']):
-        batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
+        self.replay_buffer.shuffle()
+        for k in range(0,self.replay_buffer.size,self.config['train_batch_size']):
+          print(self.replay_buffer.size)
+          batch = self.replay_buffer.sample_batch(k,self.config['train_batch_size'])
 
-        self.update_rng,update_rng = jax.random.split(self.update_rng)
-        self.policy_params,self.value_params,self.policy_opt_state,self.value_opt_state,policy_loss,value_loss = self.jitted_update(self.policy_params,self.value_params,batch,self.policy_opt_state,self.value_opt_state,self.config['clip_eps'],self.config["kl_coeff"],self.config["entropy_coeff"],update_rng)
-        
-        policy_losses.append(policy_loss)
-        value_losses.append(value_loss)
+          print("CHECKPOINT UPDATE")
+          print(batch.obs.shape)
+          print(batch.obs[:10])
+          print(batch.act[:10])
+          assert False
+
+          self.policy_params,self.value_params,self.policy_opt_state,self.value_opt_state,policy_loss,value_loss = self.jitted_update(self.policy_params,self.value_params,batch,self.policy_opt_state,self.value_opt_state,self.config['clip_eps'],self.config["kl_coeff"],self.config["entropy_coeff"])
+          """(a,m,s,logpis,loss) = to_debug
+          print("---",loss)
+          print(m.min(),m.max(),s.min(),s.max())
+          print(a.min(),a.max(),logpis.min(),logpis.max())
+          assert not(jnp.isnan(loss))"""
+          """print('---')
+          for k in self.value_params:
+          for k2 in self.value_params[k]:
+            print(k,k2,jnp.mean(self.value_params[k][k2]))
+          if j>10:
+          assert False"""
+          
+          policy_losses.append(policy_loss)
+          value_losses.append(value_loss)
 
       #Empty the replay buffer (not necessary - just to be sure)
-      self.replay_buffer.empty()
+      #self.replay_buffer.empty()
       
       #Eval Rollout (doesn't put trajectories in the replay buffer)
       self.test_rollout_rng,test_rollout_rng = jax.random.split(self.test_rollout_rng)
@@ -152,7 +203,7 @@ class Trainer:
       #Print stats
       print("---------- EPOCH ",i," - nb_steps ",nb_stepped)
       if self.mode == 'discrete':
-        print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(data["actions"]),axis=0))
+        print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(train_data["actions"]),axis=0))
       else:
         print('TRAIN actions mean :',jnp.mean(train_data["actions"])," std :",jnp.std(train_data["actions"])," min :",jnp.min(train_data["actions"])," max:",jnp.max(train_data["actions"]))
         print('TEST actions mean :',jnp.mean(test_data["actions"])," std :",jnp.std(test_data["actions"])," min :",jnp.min(test_data["actions"])," max:",jnp.max(test_data["actions"]))
