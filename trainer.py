@@ -80,15 +80,15 @@ class Trainer:
 
     #Create the value network
     self.value_net = self.value_net_creator()
-    #self.value_net_init,self.value_net_apply = (jax.jit(self.value_net.init),jax.jit(self.value_net.apply))
-    self.value_net_init,self.value_net_apply = (self.value_net.init,self.value_net.apply)
+    self.value_net_init,self.value_net_apply = (jax.jit(self.value_net.init),jax.jit(self.value_net.apply))
+    #self.value_net_init,self.value_net_apply = (self.value_net.init,self.value_net.apply)
 
     #Intialize value network parameters
     self.value_params = self.value_net_init(x=self.train_env.observation_space.sample(),rng=next(self.rng))
 
     #Jit the network's functions
-    #self.policy_net_init,self.policy_net_apply = (jax.jit(self.policy_net.init),jax.jit(self.policy_net.apply))
-    self.policy_net_init,self.policy_net_apply = (self.policy_net.init,self.policy_net.apply)
+    self.policy_net_init,self.policy_net_apply = (jax.jit(self.policy_net.init),jax.jit(self.policy_net.apply))
+    #self.policy_net_init,self.policy_net_apply = (self.policy_net.init,self.policy_net.apply)
 
     #Intialize policy network parameters
     self.policy_params = self.policy_net_init(x=self.train_env.observation_space.sample(),rng=next(self.rng))
