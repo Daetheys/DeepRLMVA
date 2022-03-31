@@ -19,7 +19,7 @@ DEFAULT_TRAINER_CONFIG = {
     "seed": 0,
     "gamma":0.995,
     "decay":0.97,
-    "replay_buffer_size":2084,
+    "replay_buffer_size":2048,
 }
 
 DEFAULT_REPLAY_BUFFER_CONFIG = {}

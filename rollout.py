@@ -31,14 +31,14 @@ def calculate_gaes(rewards, values, done, new_value,gamma=0.99, decay=0.97):
     #assert False
 
     deltas = np.array(deltas)
-    print("delta",deltas[-10:].tolist())
+    """print("delta",deltas[-10:].tolist())
     print("rew",rew[-10:].tolist())
     print("done",done[-10:].tolist())
     print("values",values[-10:,0].tolist())
     print("nvalues",next_values[-10:].tolist())
-    assert False
+    assert False"""
     gaes = np.array(gaes)
-    print(gaes[::-1][-50:])
+    """print(gaes[::-1][-50:])"""
         
     """print("----")
     print(gamma,decay)
@@ -93,11 +93,12 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
 
         reward *= reward_scaling
 
-        print('CHECKPOINT ROLLOUT')
+        """print('CHECKPOINT ROLLOUT')
         print(obs.tolist())
         print(act.item(),logp.item())
         print(next_obs.tolist(),reward,done)
-        #assert False
+        print(value.item())
+        #assert False"""
 
         """if step > 205:
             assert False"""
@@ -116,8 +117,6 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
             obs = env.reset()
             #env.env.env.state = np.array([0.1,0.1])
             #obs,_,_,_ = env.step(np.array([0.1]))
-
-    print(traj_info[3][-10:].tolist())
 
     traj_info = [jnp.array(x) for x in traj_info]
 

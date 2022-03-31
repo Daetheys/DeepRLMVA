@@ -34,14 +34,15 @@ def select_action(params, apply, state, rng, cliprange=(-jnp.inf,jnp.inf)):
     mean, std = policy(params, apply, state)
     
     action = mean
-    logp = compute_logprobability_jitted(action[None], mean[None], std[None])
+    action = jnp.tanh(action)
+    #logp = compute_logprobability_jitted(action[None], mean[None], std[None])
 
     #action = jnp.tanh(action)
     
     #action = clip_action(scale_action(action,cliprange),cliprange)
 
     
-    return action,logp
+    return action,None
 
 def loss_critic(value_params,value_apply,states,adv,values):
     
@@ -54,50 +55,72 @@ def loss_critic(value_params,value_apply,states,adv,values):
     return loss_critic
 
 def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logpis_old,adv,kl_coeff,entropy_coeff):
-    mean, std = policy(policy_params, policy_apply, states)
-    #actions_net_space = jnp.arctanh(actions)
+    mean, logstd = policy(policy_params, policy_apply, states)
 
-    logpis = compute_logprobability_jitted(actions, mean, std)
+
+    noise = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-8)
+
+    logpis = compute_logprob_tanh(actions,logstd,noise)
     
     log_ratio = logpis - logpis_old
-    ratio = jnp.exp( log_ratio )[:,None]
+    ratio = jnp.exp( log_ratio )
+
+    adv = (adv-adv.mean())/(adv.std()+1e-8)
 
     loss_1 = ratio * adv
     loss_2 = jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv
 
     loss_actor = -jnp.minimum(loss_1, loss_2)
 
-    kl = logpis.mean()
+    #kl = logpis.mean()
 
-    entropy = jnp.log(std).mean()
+    #entropy = jnp.log(std).mean()
 
     loss_actor = loss_actor.mean()
     
     return loss_actor #+ kl_coeff*kl - entropy_coeff*entropy
 
-def debug_loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logpis_old,adv,kl_coeff,entropy_coeff,rng):
-    mean, std = policy(policy_params, policy_apply, states)
+def debug_loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logpis_old,adv,kl_coeff,entropy_coeff):
+    mean, logstd = policy(policy_params, policy_apply, states)
     #actions_net_space = jnp.arctanh(actions)
 
-    logpis = compute_logprobability_jitted(actions, mean, std)
+    noise = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-8)
+
+    logpis = compute_logprob_tanh(actions,logstd,noise)
+
+    print(logpis[:10])
+    print(logpis_old[:10])
+    #print(logpis.shape)
+    #print(logpis_old.shape)
     
     log_ratio = logpis - logpis_old
-    ratio = jnp.exp( log_ratio )[:,None]
+    ratio = jnp.exp( log_ratio )
+
+    print("ratio",ratio[:10])
+    #print(ratio.shape)
+
+    adv = (adv-adv.mean())/(adv.std()+1e-8)
 
     loss_1 = ratio * adv
     loss_2 = jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv
 
+    #print(ratio.shape,adv.shape)
+    print('loss_1',loss_1[:10])
+    print('loss_2',loss_2[:10])
+
     loss_actor = -jnp.minimum(loss_1, loss_2)
 
-    kl = logpis.mean()
+    print("loss_actor",loss_actor[:10])
 
-    entropy = jnp.log(std).mean()
+    #kl = logpis.mean()
+
+    #entropy = jnp.log(std).mean()
 
     loss_actor = loss_actor.mean()
+
+    print(loss_actor)
     
-    to_debug = (actions,mean,std,logpis,loss_actor)
-    
-    return to_debug
+    #return loss_actor #+ kl_coeff*kl - entropy_coeff*entropy
 
 def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_params, value_params, batch, policy_opt_state, value_opt_state, clip_eps, kl_coeff, entropy_coeff):
     """
@@ -127,13 +150,13 @@ def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_
     policy_grad_fn = jax.value_and_grad(loss_actor)
     policy_loss,policy_grads = policy_grad_fn(policy_params,policy_apply,states,discounts,actions,clip_eps,logp,advs,kl_coeff,entropy_coeff)
 
-    to_debug = debug_loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp,advs,kl_coeff,entropy_coeff,srng)
+    #debug_loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp,advs,kl_coeff,entropy_coeff)
 
     policy_updates, new_policy_opt_state = policy_optimizer.update(policy_grads,policy_opt_state)
     new_policy_params = optax.apply_updates(policy_params,policy_updates)
 
     #Return new policy / value parameters and optimizer states
-    return new_policy_params,new_value_params,new_policy_opt_state,new_value_opt_state,policy_loss,value_loss,to_debug
+    return new_policy_params,new_value_params,new_policy_opt_state,new_value_opt_state,policy_loss,value_loss#,to_debug
 
 
 

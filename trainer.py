@@ -87,7 +87,8 @@ class Trainer:
     self.value_params = self.value_net_init(x=self.train_env.observation_space.sample(),rng=next(self.rng))
 
     #Jit the network's functions
-    self.policy_net_init,self.policy_net_apply = (jax.jit(self.policy_net.init),jax.jit(self.policy_net.apply))
+    #self.policy_net_init,self.policy_net_apply = (jax.jit(self.policy_net.init),jax.jit(self.policy_net.apply))
+    self.policy_net_init,self.policy_net_apply = (self.policy_net.init,self.policy_net.apply)
 
     #Intialize policy network parameters
     self.policy_params = self.policy_net_init(x=self.train_env.observation_space.sample(),rng=next(self.rng))
@@ -148,7 +149,7 @@ class Trainer:
       #Counts the number of timesteps
       nb_stepped += len(train_data["actions"])
 
-      print('CHECKPOINT REPLAY BUFFER')
+      """print('CHECKPOINT REPLAY BUFFER')
       for s,a,r,d,logp,ns,g,t in zip(
           self.replay_buffer.fields['obs'][:10],
           self.replay_buffer.fields['act'][:10],
@@ -160,7 +161,7 @@ class Trainer:
           self.replay_buffer.fields['gae'][:10]+self.replay_buffer.fields['values'][:10]):
         print(s,a,r,d,logp,ns,g,t)
         
-      assert False
+      #assert False"""
       
       #Fits several time using the replay buffer
       policy_losses = []
@@ -168,16 +169,25 @@ class Trainer:
       for j in range(self.config['nb_fit_per_epoch']):
         self.replay_buffer.shuffle()
         for k in range(0,self.replay_buffer.size,self.config['train_batch_size']):
-          print(self.replay_buffer.size)
           batch = self.replay_buffer.sample_batch(k,self.config['train_batch_size'])
 
-          print("CHECKPOINT UPDATE")
+          """print("CHECKPOINT UPDATE")
           print(batch.obs.shape)
           print(batch.obs[:10])
           print(batch.act[:10])
-          assert False
+          print(batch.logp[:10])
+          gae = batch.gae
+          gae = (gae-gae.mean())/(gae.std()+1e-8)
+          print(gae[:10])
+          print(batch.gae[:10]+batch.values[:10])
+          #assert False"""
 
           self.policy_params,self.value_params,self.policy_opt_state,self.value_opt_state,policy_loss,value_loss = self.jitted_update(self.policy_params,self.value_params,batch,self.policy_opt_state,self.value_opt_state,self.config['clip_eps'],self.config["kl_coeff"],self.config["entropy_coeff"])
+
+          #print('CHECKPOINT LOSS')
+          #print(value_loss,policy_loss)
+          #assert False
+          
           """(a,m,s,logpis,loss) = to_debug
           print("---",loss)
           print(m.min(),m.max(),s.min(),s.max())
@@ -197,8 +207,7 @@ class Trainer:
       #self.replay_buffer.empty()
       
       #Eval Rollout (doesn't put trajectories in the replay buffer)
-      self.test_rollout_rng,test_rollout_rng = jax.random.split(self.test_rollout_rng)
-      test_data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,test_rollout_rng,add_buffer=False)
+      test_data,mean_rew,mean_len = rollout(self.action_function,self.eval_env,self.config['testing_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,self.rng,add_buffer=False)
 
       #Print stats
       print("---------- EPOCH ",i," - nb_steps ",nb_stepped)
