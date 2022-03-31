@@ -2,11 +2,11 @@ import numpy as np
 import gym
 import multiprocessing as mp
 import tree
-from utils import scale_action,clip_action
+from utils import scale_action
 import jax.numpy as jnp
 
 class ActionScalingWrapper(gym.Wrapper):
-    #Wrap the environment for Jax Agents (transforms actions into np.array for gym)
+    """ Wrap the environment to normalize actions """
     def __init__(self,env):
         super().__init__(env)
         self.env = env
@@ -14,7 +14,7 @@ class ActionScalingWrapper(gym.Wrapper):
         self._max_episode_steps = env._max_episode_steps
     def step(self,a):
         a = np.array(a)
-        a = scale_action(a,self.clip_range)
+        a = scale_action(a,self.clip_range) #Scale from [-1,1] to the clip range
         return self.env.step(a)
 
 #----------------------------------------------------------------------
@@ -36,6 +36,7 @@ def run_env(env,pipe):
         pipe.send(out)
 
 class ThreadedWrapper(gym.Wrapper):
+    """ Threaded Environment Wrapper : Executes the environment in a distant thread """
     def __init__(self,env):
         super().__init__(env)
         self.env = env
@@ -64,6 +65,7 @@ class ThreadedWrapper(gym.Wrapper):
         self.process.kill()
 
 class ParallelEnv:
+    """ Environment that will cluster several environments into a single one """
     def __init__(self,env_creator,nb_env):
         self.envs = [env_creator() for i in range(nb_env)]
         self.obs = np.array([e.observation_space.sample() for e in self.envs])
@@ -73,14 +75,17 @@ class ParallelEnv:
         self.action_space = self.envs[0].action_space
 
     def reset(self):
+        """ Reset the environments which needs it """
         self.obs = np.array([e.reset() if d else o for e,d,o in zip(self.envs,self.done,self.obs)])
         return self.obs
 
     def force_reset(self):
+        """ Force the reset of all environments """
         self.obs = np.array([e.reset() for e in self.envs])
         return self.obs
 
     def step(self,a):
+        """ Steps in each environment """
         out = [e.step(act) for e,act in zip(self.envs,a)]
         out = tree.map_structure(lambda *x : np.stack(x,axis=0),*out)
         self.obs = out[0]
@@ -88,5 +93,6 @@ class ParallelEnv:
         return out
 
     def close(self):
+        """ Close all environments """
         for e in self.envs:
             e.close()

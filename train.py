@@ -23,7 +23,7 @@ def run(args):
 
     #Build Training
     config['trainer']['seed'] = config['seed']
-    trainer = Trainer(policy_net_creator,value_net_creator,env_creator,config=config['trainer'])
+    trainer = Trainer(policy_net_creator,value_net_creator,env_creator,config=config,name=args.name)
 
     #Train
     trainer.train(config['nb_steps'])
@@ -33,5 +33,6 @@ def run(args):
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--config", type=str, default="InvertedPendulum.json")
+    p.add_argument("--name", type=str, default=None)
     args = p.parse_args()
     run(args)

@@ -8,50 +8,29 @@ def calculate_gaes(rewards, values, done, new_value,gamma=0.99, decay=0.97):
     Return the General Advantage Estimates from the given rewards and values.
     Paper: https://arxiv.org/pdf/1506.02438.pdf
     """
-    rewards = np.float32(rewards)
-    done = np.float32(done)
+    #Get next values
     next_values = values[1:]
     next_values = np.append(next_values, new_value)
-    #values = 0*values+1
-    #next_values = next_values*0+1
+
+    #Compute deltas
     deltas = [rew + gamma * next_val * (1-d) - val for rew, val, next_val,d in zip(rewards, values, next_values,done)]
 
+    #Create np arrays
     rew = np.array(rewards)
     values = np.array(values)
     done = np.array(done)
     next_values = np.array(next_values)
 
+    #Compute GAE (reverse order)
     gaes = [deltas[-1]]
-    c = 0
     for i in reversed(range(len(deltas)-1)):
-        #print(deltas[i],gaes[-1],done[i],gamma*decay*(1-done[i])*gaes[-1])
-        c += 1
-        #assert c < 205
         gaes.append(deltas[i] + gamma * decay * (1-done[i]) * gaes[-1])
-    #assert False
-
-    deltas = np.array(deltas)
-    """print("delta",deltas[-10:].tolist())
-    print("rew",rew[-10:].tolist())
-    print("done",done[-10:].tolist())
-    print("values",values[-10:,0].tolist())
-    print("nvalues",next_values[-10:].tolist())
-    assert False"""
     gaes = np.array(gaes)
-    """print(gaes[::-1][-50:])"""
-        
-    """print("----")
-    print(gamma,decay)
-    done = done[:500]
-    for (m,r,v,d,g) in zip(done,rewards,values,deltas,gaes[::-1]):
-        print(v.dtype)
-        assert False
-        print(m,r,v[0].item(),d,g)
-    assert False"""
 
+    #Return GAES in the right order
     return np.array(gaes[::-1])
 
-def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_params, value_params, policy_apply, value_apply, rng, add_buffer = True, reward_scaling=1.):
+def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_params, value_params, policy_apply, value_apply, rng, add_buffer = True, reward_scaling=1., mask_done=True):
     """
     Performs a single rollout.
     Returns informations in a dict of shape (nb_steps, obs_shape)
@@ -61,12 +40,7 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
     traj_info = [[], [], [], [], [], []] # obs, act, reward, values, done
     obs = env.reset()
 
-    """print('CHECKPOINT OBS')
-    print(obs)
-    assert False"""
-    
-    #env.env.env.state = np.array([0.1,0.1])
-    #obs,_,_,_ = env.step(np.array([0.1]))
+    #Initialize stats
     len_ep = []
     episode_length = 0
     reward_ep = 0
@@ -77,36 +51,28 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
     while step < nb_steps:# or not done:
         episode_length += 1
     
-        act,logp = select_action(policy_params, policy_apply, obs[None], rng)  # Sample an action , to adapt
+        act,logp = select_action(policy_params, policy_apply, obs[None], rng)  # Sample an action
         act = act[0]
-        #rng,sub_rng = jax.random.split(rng)
         
-        value = value_apply(value_params,x=obs)
+        value = value_apply(value_params,x=obs) #Compute value
 
-        next_obs, reward, done, i = env.step(np.array(act))
+        next_obs, reward, done, i = env.step(np.array(act)) #Step the environment
 
+        #If the environment stops because of time it might create a bias in the data and the agent might not learn very efficiently. It seems to be especially impactful in environment with low time limits like Pendulum-v1 (200 timesteps) and it doesn't seem to have too much impact on environments with higher time limites like InvertedPendulum-v2 (1000 timesteps)
         mask = done
-        if episode_length == env._max_episode_steps:
+        if mask_done and episode_length == env._max_episode_steps:
             mask = False
-
-        reward_ep += reward
-
+        
+        #Reward scaling
         reward *= reward_scaling
-
-        """print('CHECKPOINT ROLLOUT')
-        print(obs.tolist())
-        print(act.item(),logp.item())
-        print(next_obs.tolist(),reward,done)
-        print(value.item())
-        #assert False"""
-
-        """if step > 205:
-            assert False"""
+            
+        reward_ep += reward #Log for stats
 
         ### Store Data
         for j, item in enumerate((obs, act, reward, value, mask, logp)):
           traj_info[j].append(item)
 
+        #Loop and Reset if needed
         obs = next_obs
         step += 1
         if done:
@@ -115,20 +81,20 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
             rewards_ep.append(reward_ep)
             reward_ep = 0
             obs = env.reset()
-            #env.env.env.state = np.array([0.1,0.1])
-            #obs,_,_,_ = env.step(np.array([0.1]))
 
-    traj_info = [jnp.array(x) for x in traj_info]
-
-    new_value = value_apply(value_params,x=next_obs)
-    gaes = calculate_gaes(traj_info[2], traj_info[3], traj_info[4],new_value,gamma=gamma,decay=decay)  # Calculate GAES
+    #Prepare data for the replay buffer
+    traj_info = [jnp.array(x) for x in traj_info] #Set as array
     
+    new_value = value_apply(value_params,x=next_obs) #Compute values
+    gaes = calculate_gaes(traj_info[2], traj_info[3], traj_info[4],new_value,gamma=gamma,decay=decay)  # Compute GAES
+
+    #Add in the buffer (if requested)
     if add_buffer:
         for i in range(nb_steps-1):
             replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], traj_info[5][i], gamma*(1-traj_info[4][i]), gaes[i], traj_info[3][i])
         replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], next_obs, traj_info[5][i], gamma*(1-traj_info[4][i]), gaes[i], traj_info[3][i])
 
-    
+    #Return stats to print them
     return dict(
         observations = traj_info[0],
         actions = traj_info[1],

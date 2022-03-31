@@ -1,108 +1,52 @@
-import collections
-import jax
 import jax.numpy as jnp
 import numpy as np
-from functools import partial
+import collections
+import gym
 
 Transition = collections.namedtuple("Transition",
-                                    field_names=["obs_tm1", "action_tm1", "reward_t", "obs_t", "discount_t", "gae"])
+                                    field_names=["obs", "act", "rew", "nobs", "logp","discount", "gae","values"])
 
+class ReplayBuffer:
+    def __init__(self,maxlen,env):
+        self.maxlen = maxlen
+        self.env = env
 
-class BaseReplayBuffer:
-    """Fixed-size buffer to store transition tuples."""
+        self.empty()
 
-    def __init__(self, buffer_capacity: int):
-        """Initialize a ReplayBuffer object.
-        Args:
-            buffer_capacity (int): number of samples the buffer can store
-        """
-        self._memory = list()
-        self._maxlen = buffer_capacity
+    def empty(self):
+        """ Reset the replay buffer """
+        maxlen = self.maxlen
+        env = self.env
+        
+        action_dim = env.action_space.low.shape if isinstance(env.action_space,gym.spaces.Box) else (env.action_space.n,)
 
-    def add(self, obs_tm1, action_tm1, reward_t, obs_t, discount_t, gae):
-        """Add a new transition to memory."""
-        if len(self._memory) >= self._maxlen:
-            self._memory.pop(0)  # remove first elem (oldest)
+        #Reset all fields
+        self.fields = {"obs":np.zeros((maxlen,)+env.observation_space.low.shape,dtype=np.float32),
+                       "act":np.zeros((maxlen,)+action_dim,dtype=np.float32),
+                       "logp":np.zeros((maxlen,)+(1,),dtype=np.float32),
+                       "nobs":np.zeros((maxlen,)+env.observation_space.low.shape,dtype=np.float32),
+                       "rew":np.zeros((maxlen,)+(1,),dtype=np.float32),
+                       "discount":np.zeros((maxlen,)+(1,),dtype=np.float32),
+                       "gae":np.zeros((maxlen,)+(1,),dtype=np.float32),
+                       "values":np.zeros((maxlen,)+(1,),dtype=np.float32)
+                       }
 
-        transition = Transition(
-            obs_tm1=obs_tm1,
-            action_tm1=action_tm1,
-            reward_t=reward_t,
-            obs_t=obs_t,
-            discount_t=discount_t,
-            gae=gae)
+        #Reset the cursor position used to add timesteps and the size of filled area in the buffer
+        self.cursor = 0
+        self.size = 0
 
-        # convert every data into jnp array
-        transition = jax.tree_map(jnp.array, transition)
+    def add(self,*ts):
+        """ Adds a new timestep in the replay buffer """
+        ts = Transition(*ts)
+        for k in self.fields:
+            self.fields[k][self.cursor] = getattr(ts,k)
+        self.cursor = (self.cursor+1)%self.maxlen
+        self.size = min(self.size+1,self.maxlen)
 
-        self._memory.append(transition)
-
-    def sample(self,key):
-        """Randomly sample a transition from memory."""
-        assert self._memory, 'Replay buffer is unfilled. It is impossible to sample from it.'
-        transition_idx = np.random.randint(0, len(self._memory))
-        transition = self._memory[transition_idx]#self._memory.pop(transition_idx)
-
-        return transition
-
-
-class ReplayBuffer(BaseReplayBuffer):
-
-    def sample_batch(self, batch_size, key):
-        """Randomly sample a batch of experiences from memory."""
-        assert len(self._memory) >= batch_size, 'Insufficient number of transitions in replay buffer.'
-        all_transitions = [self.sample(key) for _ in range(batch_size)]
-
-        stacked_transitions = []
-        for i, _ in enumerate(all_transitions[0]):
-            arrays = [t[i] for t in all_transitions]
-            arrays = jnp.stack(arrays, axis=0)
-            stacked_transitions.append(arrays)
-
-        return Transition(*stacked_transitions)
-
-
-class PrioritizedReplayBuffer:
-    """Fixed-size buffer to store transition tuples."""
-
-    def __init__(self, buffer_capacity: int):
-        """Initialize a ReplayBuffer object."""
-        self._memory = list()
-        self._priority = list()
-        self._maxlen = buffer_capacity
-
-    def add(self, obs_tm1, action_tm1, reward_t, obs_t, discount_t, gae, priority):
-        """Add a new transition to memory."""
-        if len(self._memory) >= self._maxlen:
-            self._memory.pop(0)  # remove first elem (oldest)
-            self._priority.pop(0)
-
-        transition = Transition(
-            obs_tm1=obs_tm1,
-            action_tm1=action_tm1,
-            reward_t=reward_t,
-            obs_t=obs_t,
-            discount_t=discount_t,
-            gae=gae)
-
-        # convert every data into jnp array
-        transition = jax.tree_map(jnp.array, transition)
-
-        self._memory.append(transition)
-        self._priority.append(priority)
-
-    def sample(self):
-        """Randomly sample a transition from memory."""
-        assert self._memory, 'replay buffer is unfilled'
-        assert len(self._memory) == len(self._priority)
-
-        priority_sum = sum(self._priority)
-        normalized_priority = [p / priority_sum for p in self._priority]
-
-        transition_idx = np.random.choice(range(len(self._memory)),
-                                          p=normalized_priority)
-
-        transition = self._memory.pop(transition_idx)
-        self._priority.pop(transition_idx)
-
-        return transition
+    def sample_batch(self,batch_size):
+        """ Samples a batch of given size uniformly from the replay buffer (doesn't remove sampled timesteps) """
+        idx_batch = np.random.choice(self.size,batch_size,replace=False)
+        d = {}
+        for k in self.fields:
+            d[k] = self.fields[k][idx_batch]
+        return Transition(**d)

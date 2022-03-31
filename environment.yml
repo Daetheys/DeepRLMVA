@@ -14,3 +14,4 @@ dependencies:
     - gym
     - pygame
     - mujoco-py<2.2,>=2.1
+    - xlsxwriter

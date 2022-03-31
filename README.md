@@ -52,5 +52,5 @@ $ python -m pytest
 ### To test the code
 
 ```bash
-$ python train.py --config InvertedPendulum.json
+$ python train.py --config preconfig/InvertedPendulum.json
 ```

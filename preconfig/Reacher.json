@@ -1,7 +1,7 @@
 {
-    "env":"InvertedPendulum-v2",
+    "env":"Reacher-v2",
     "trainer":{
-	"nb_fit_per_epoch":300,
+	"nb_fit_per_epoch":300*2048/64,
 	"train_batch_size":64,
 	"training_rollout_length":2048,
 	"testing_rollout_length":1000,
@@ -13,9 +13,10 @@
 	"entropy_coeff":0.0,
 	"clip_eps":0.2,
 	"clip_grad":10,
-	"reward_scale":1,
+	"reward_scale":10,
 	"gamma":0.995,
 	"decay":0.97,
+	"mask_done":true,
 	"replay_buffer_size":2048},
     "seed":0,
     "nb_steps":100000
