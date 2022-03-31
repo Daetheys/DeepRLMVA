@@ -48,3 +48,9 @@ Then delete the last line in environment.yml with the prefix.
 ```bash
 $ python -m pytest 
 ```
+
+### To test the code
+
+```bash
+$ python train.py --config InvertedPendulum.json
+```

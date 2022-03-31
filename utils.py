@@ -19,7 +19,7 @@ proba = jax.vmap(logpdf)
 def compute_logprob_tanh(action,logstd,noise):
     t1 = -0.5 * (jnp.square(noise) + 2*logstd + jnp.log(2*math.pi))
     t2 = - jnp.log(jax.nn.relu(1.0-jnp.square(action)) + 1e-6)
-    return  t1 + t2
+    return  (t1 + t2).sum(axis=1,keepdims=True)
 
 def compute_logprobability(actions, mean, std):
     std = std**2

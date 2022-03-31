@@ -35,7 +35,7 @@ def simple_net(out_dim):
     return build_mlp([256,256,out_dim],jax.nn.relu)
 
 
-def actor_net(out_dim,mode='discrete',layer_size=64):
+def actor_net(out_dim,mode='discrete',layer_size=256):
     def _wrap(x):
         init_hidden = hk.initializers.Orthogonal(scale=1.)
         init_out = hk.initializers.Orthogonal(scale=0.01)
@@ -46,7 +46,7 @@ def actor_net(out_dim,mode='discrete',layer_size=64):
         return mu,logstd
     return hk.without_apply_rng(hk.transform(_wrap))
 
-def value_net(layer_size=64):
+def value_net(layer_size=256):
     def _wrap(x):
         init_hidden = hk.initializers.Orthogonal(scale=1.)
         init_out = hk.initializers.Orthogonal(scale=1.)

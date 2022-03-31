@@ -3,7 +3,7 @@ DEFAULT_AGENT_CONFIG = {
 }
 
 DEFAULT_TRAINER_CONFIG = {
-    "nb_fit_per_epoch":10*2048//64,
+    "nb_fit_per_epoch":10,
     "train_batch_size":64,
     "training_rollout_length":2048,
     "testing_rollout_length":1000,
