@@ -22,7 +22,7 @@ def compute_logprob_tanh(action,logstd,noise):
     #tanh composition
     t3 = 1.0 - jnp.square(action) #tanh'
     t3 = jnp.maximum(t3,0) #to be sure that floats limitations don't mess up the computation (else the next line returns nan in Reacher-v2 (seed 0))
-    t3 = - jnp.log(t3 + 1e-10) #log
+    t3 = - jnp.log(t3 + 1e-6) #log
     logp = t1+t2+t3
     logp_summed = logp.sum(axis=1,keepdims=True)
     #print(t1.shape,t2.shape,t3.shape,logp.shape,logp_summed.shape)

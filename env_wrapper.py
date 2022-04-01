@@ -19,7 +19,7 @@ class ActionScalingWrapper(gym.Wrapper):
 
 #----------------------------------------------------------------------
 #
-#                       Multi Threading
+#             Multi Threading - Not used in the implementation
 #
 #----------------------------------------------------------------------
 

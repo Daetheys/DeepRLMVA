@@ -21,12 +21,12 @@ def select_action_and_explore(params, apply, state, rng):
     std = jnp.exp(logstd)
 
     #Sample action according to distribution
-    noise = jax.random.normal(next(rng),mean.shape) #N(0,1)
-    action = mean + std * noise
+    normal = jax.random.normal(next(rng),mean.shape) #N(0,1)
+    action = mean + std * normal
 
     #Clip action with tanh and computes according logprob
     action = jnp.tanh(action)
-    logp = compute_logprob_tanh(action,logstd,noise)
+    logp = compute_logprob_tanh(action,logstd,normal)
     
     return action,logp
 
@@ -57,13 +57,13 @@ def loss_critic(value_params,value_apply,states,adv,values):
     return loss_critic
 
 
-def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logpis_old,adv,kl_coeff,entropy_coeff):
+def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logpis_old,adv):
     """ Computes the actor loss for PPO """
     #Get distributions of actions of the batch
     mean, logstd = policy(policy_params, policy_apply, states)
 
     #Computes the probability of these actions with the actual parameters
-    noise = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-10)
+    normal = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-10)
     logpis = compute_logprob_tanh(actions,logstd,noise)
 
     #Computes the ratio for PPO
@@ -78,16 +78,12 @@ def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp
     loss_2 = jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv
     loss_actor = -jnp.minimum(loss_1, loss_2)
 
-    #Computes additional losses
-    #kl = logpis.mean()
-    #entropy = jnp.log(std).mean()
-
     loss_actor = loss_actor.mean()
     
-    return loss_actor #+ kl_coeff*kl - entropy_coeff*entropy
+    return loss_actor
 
 
-def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_params, value_params, batch, policy_opt_state, value_opt_state, clip_eps, kl_coeff, entropy_coeff):
+def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_params, value_params, batch, policy_opt_state, value_opt_state, clip_eps):
     """ Updates the networks on the given batch by gradient descent """
     
     states, actions, rewards, new_observations, logp, discounts, advs, values = batch
@@ -102,7 +98,7 @@ def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_
 
     #Update actor
     policy_grad_fn = jax.value_and_grad(loss_actor)
-    policy_loss,policy_grads = policy_grad_fn(policy_params,policy_apply,states,discounts,actions,clip_eps,logp,advs,kl_coeff,entropy_coeff)
+    policy_loss,policy_grads = policy_grad_fn(policy_params,policy_apply,states,discounts,actions,clip_eps,logp,advs)
 
     policy_updates, new_policy_opt_state = policy_optimizer.update(policy_grads,policy_opt_state)
     new_policy_params = optax.apply_updates(policy_params,policy_updates)

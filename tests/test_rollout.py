@@ -5,31 +5,34 @@ import gym
 from statistics import mean
 
 from rollout import *
-from replay_buffer import BaseReplayBuffer
-from networks import actor_critic_net
-from agent_discrete import select_action
-from env_wrapper import JaxWrapper
+from replay_buffer import ReplayBuffer
+from networks import actor_net,value_net
+from agent import select_action
+from env_wrapper import ActionScalingWrapper
 
 def test_gaes():
     gamma = 0.99
     decay = 0.97
     rewards = np.array([1,1,1,1,1])
     values = np.array([1,1,1,1,1])
-    advs = calculate_gaes(rewards,values,gamma=gamma,decay=decay)
-    print(advs)
-    assert False
+    done = np.array([0,0,0,0,0])
+    advs = calculate_gaes(rewards,values,done,1,gamma=gamma,decay=decay)
 
 def test_rollout():
-    nb_steps = 50
-    replay_buffer = BaseReplayBuffer(5)
+    nb_steps = 201
     discount = 0.99
-    env_creator = lambda :JaxWrapper(gym.make('CartPole-v1'))
+    env_creator = lambda :ActionScalingWrapper(gym.make('Pendulum-v1'))
     env = env_creator()
-    net = actor_critic_net(env.action_space.n)
-    init, apply = net
     rng = jax.random.PRNGKey(42)
-    params= init(rng, jnp.zeros(4))
-    rng = jax.random.PRNGKey(42)
+    replay_buffer = ReplayBuffer(5,env)
+    
+    act_net = actor_net(env.action_space.low.shape[0])
+    actor_init, actor_apply = act_net
+    actor_params = actor_init(rng, jnp.array(env.observation_space.sample()))
 
-    infos, mean_reward, mean_timestep = rollout(select_action, env, nb_steps, replay_buffer, discount, params, apply, rng)
+    val_net = value_net(env.action_space.low.shape[0])
+    value_init, value_apply = val_net
+    value_params = value_init(rng, jnp.array(env.observation_space.sample()))
+
+    infos, mean_reward, mean_timestep = rollout(select_action, env, nb_steps, replay_buffer, discount, 0.97, actor_params, value_params,actor_apply, value_apply, rng)
     assert len(infos) == 4

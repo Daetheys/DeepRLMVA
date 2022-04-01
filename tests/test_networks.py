@@ -10,61 +10,21 @@ def run_net(net,inp_shape):
     rng = jax.random.PRNGKey(42)
     x = jnp.zeros(inp_shape)
     params = init(rng,x)
-    out = fwd(params=params,x=x,rng=rng)
+    out = fwd(params=params,x=x)
     return out
 
-def test_build_network():
-    #Test empty
-    net = build_network([])
-    out = run_net(net,(15,10))
-    assert out.shape == (15,10)
-    out = run_net(net,(35,3))
-    assert out.shape == (35,3)
-    #Test standard
-    net = build_network([(hk.Linear,[64]),(lambda x: jax.nn.relu,[None]),(hk.Linear,[4])])
-    out = run_net(net,(40,10))
-    assert out.shape == (40,4)
-    out = run_net(net,(0,21))
-    assert out.shape == (0,4)
+def test_actor_net():
+    net = actor_net(5)
+    mu,logstd = run_net(net,(45,3))
+    assert mu.shape == (45,5)
+    assert logstd.shape == (45,5)
+    mu,logstd = run_net(net,(23,15))
+    assert mu.shape == (23,5)
+    assert logstd.shape == (23,5)
 
-def test_mlp_network():
-    #Test empty
-    net = build_mlp([],None)
-    out = run_net(net,(17,10))
-    assert out.shape == (17,10)
-    out = run_net(net,(18,3))
-    assert out.shape == (18,3)
-    #Test standard
-    net = build_mlp([64,64,2],jax.nn.relu)
-    out = run_net(net,(0,10))
-    assert out.shape == (0,2)
-    out = run_net(net,(21,))
-    assert out.shape == (2,)
-
-def test_simple_net():
-    #Test standard
-    net = simple_net(5)
-    out = run_net(net,(50,10))
-    assert out.shape == (50,5)
-    out = run_net(net,(20,21))
-    assert out.shape == (20,5)
-
-def test_actor_critic_net():
-    net = actor_critic_net(5)
-    pol_out,val_out = run_net(net,(45,3))
-    assert pol_out.shape == (45,5)
-    assert val_out.shape == (45,1)
-    pol_out,val_out = run_net(net,(23,15))
-    assert pol_out.shape == (23,5)
-    assert val_out.shape == (23,1)
-
-def test_continuous_actor_critic_net():
-    net = continuous_actor_critic_net(5)
-    (mean_out,logstd_out),val_out = run_net(net,(45,3))
-    assert mean_out.shape == (45,5)
-    assert logstd_out.shape == (45,5)
-    assert val_out.shape == (45,1)
-    (mean_out,logstd_out),val_out = run_net(net,(23,15))
-    assert mean_out.shape == (23,5)
-    assert logstd_out.shape == (23,5)
-    assert val_out.shape == (23,1)
+def test_critic_net():
+    net = value_net(5)
+    val = run_net(net,(45,3))
+    assert val.shape == (45,1)
+    val = run_net(net,(23,15))
+    assert val.shape == (23,1)

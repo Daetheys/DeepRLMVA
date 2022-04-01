@@ -15,6 +15,7 @@ import haiku as hk
 import numpy as np
 import os
 import json
+import agent
 
 class Trainer:
   def __init__(self,policy_net_creator,value_net_creator,env_creator,config=None,name=None):
@@ -85,27 +86,12 @@ class Trainer:
     #Create the replay buffer
     self.replay_buffer = ReplayBuffer(self.config["replay_buffer_size"],self.train_env)
 
-    #Builds the network depending on the type of environment considered (discrete / continuous action space)
-    if isinstance(self.train_env.action_space,gym.spaces.Discrete):
-      #Import the right agent
-      import agent_discrete as agent
-      #Get the right functions
-      self.action_function = agent.select_action
-      self.explore_action_function = agent.select_action
-      #Builds the network
-      self.action_dim = self.train_env.action_space.n
-      self.policy_net = self.policy_net_creator(self.action_dim,'discrete')
-      self.mode = 'discrete'
-    else:
-      #Import the right agent
-      import agent_continuous as agent
-      #Get the right functions
-      self.action_function = agent.select_action
-      self.explore_action_function = agent.select_action_and_explore
-      #Builds the network
-      self.action_dim = self.train_env.action_space.low.shape[0]
-      self.policy_net = self.policy_net_creator(self.action_dim,'continuous')
-      self.mode = 'continuous'
+    #Get functions
+    self.action_function = agent.select_action
+    self.explore_action_function = agent.select_action_and_explore
+    #Builds the network
+    self.action_dim = self.train_env.action_space.low.shape[0]
+    self.policy_net = self.policy_net_creator(self.action_dim)
 
     #Create the value network
     self.value_net = self.value_net_creator()
@@ -175,7 +161,7 @@ class Trainer:
       for j in range(self.config['nb_fit_per_epoch']):
         batch = self.replay_buffer.sample_batch(self.config['train_batch_size'])
 
-        self.policy_params,self.value_params,self.policy_opt_state,self.value_opt_state,policy_loss,value_loss,policy_grads,value_grads = self.jitted_update(self.policy_params,self.value_params,batch,self.policy_opt_state,self.value_opt_state,self.config['clip_eps'],self.config["kl_coeff"],self.config["entropy_coeff"])
+        self.policy_params,self.value_params,self.policy_opt_state,self.value_opt_state,policy_loss,value_loss,policy_grads,value_grads = self.jitted_update(self.policy_params,self.value_params,batch,self.policy_opt_state,self.value_opt_state,self.config['clip_eps'])
           
         policy_losses.append(policy_loss)
         value_losses.append(value_loss)
@@ -191,11 +177,8 @@ class Trainer:
 
       #Print stats
       print("---------- EPOCH ",epoch," - nb_steps ",nb_stepped,' - mean reward ',mean_rew,' - mean length ',mean_len)
-      if self.mode == 'discrete':
-        print('actions mean proba',jnp.mean(mapped_vectorize(self.action_dim)(train_data["actions"]),axis=0))
-      else:
-        print('TRAIN actions mean :',jnp.mean(train_data["actions"])," std :",jnp.std(train_data["actions"])," min :",jnp.min(train_data["actions"])," max:",jnp.max(train_data["actions"]))
-        print('TEST actions mean :',jnp.mean(test_data["actions"])," std :",jnp.std(test_data["actions"])," min :",jnp.min(test_data["actions"])," max:",jnp.max(test_data["actions"]))
+      print('TRAIN actions mean :',jnp.mean(train_data["actions"])," std :",jnp.std(train_data["actions"])," min :",jnp.min(train_data["actions"])," max:",jnp.max(train_data["actions"]))
+      print('TEST actions mean :',jnp.mean(test_data["actions"])," std :",jnp.std(test_data["actions"])," min :",jnp.min(test_data["actions"])," max:",jnp.max(test_data["actions"]))
       print('policy loss - mean:',jnp.mean(jnp.array(policy_losses)),'std:',jnp.std(jnp.array(policy_losses)))
       print('|-> policy gradients - mean:',jnp.mean(jnp.array(policy_gradients)),'std:',jnp.std(jnp.array(policy_gradients)))
       print('value loss - mean:',jnp.mean(jnp.array(value_losses)),'std:',jnp.std(jnp.array(value_losses)))

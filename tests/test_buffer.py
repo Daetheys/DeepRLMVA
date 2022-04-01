@@ -1,58 +1,28 @@
 from replay_buffer import *
+import gym
 
 
 def test_init():
-    buffer = BaseReplayBuffer(20)
-    assert not buffer._memory
-    assert buffer._maxlen == 20
-    buffer = BaseReplayBuffer(42)
-    assert buffer._maxlen == 42
+    env = gym.make('CartPole-v1')
+    buffer = ReplayBuffer(20,env)
+    assert buffer.maxlen == 20
+    buffer = ReplayBuffer(42,env)
+    assert buffer.maxlen == 42
 
 
 def test_add():
-    buffer = BaseReplayBuffer(5)
-    buffer.add(0, 0, 0, 0, 0, 0)
-    assert buffer._memory
+    env = gym.make('CartPole-v1')
+    buffer = ReplayBuffer(5,env)
+    buffer.add(0, 0, 0, 0, 0, 0, 0, 0)
     for i in range(50):
-        buffer.add(i, i, i, i, i, i)
-    assert len(buffer._memory) == 5
+        buffer.add(i, i, i, i, i, i, i, i)
+    assert buffer.size == 5
 
 
 def test_sample():
-    buffer = BaseReplayBuffer(5)
-    for i in range(5):
-        buffer.add(i, i, i, i, i, i)
-    for i in range(5):
-        _ = buffer.sample()
-    assert not buffer._memory
-
-
-def test_sample_batch():
-    buffer = ReplayBuffer(50)
+    env = gym.make('CartPole-v1')
+    buffer = ReplayBuffer(50,env)
     for i in range(50):
-        buffer.add(i, i, i, i, i, i)
+        buffer.add(i, i, i, i, i, i, i, i)
     for i in range(5):
         _ = buffer.sample_batch(10)
-    assert not buffer._memory
-
-
-def test_add_to_prioritized_replay_buffer():
-    buffer = PrioritizedReplayBuffer(20)
-    assert not buffer._memory
-    assert not buffer._priority
-    buffer.add(0, 0, 0, 0, 0, 0, 0.1)
-    assert buffer._memory
-    assert buffer._priority
-    for i in range(50):
-        buffer.add(i, i, i, i, i, i, i)
-    assert len(buffer._memory) == 20
-    assert len(buffer._priority) == 20
-
-
-def test_sample_from_prioritized_replay_buffer():
-    buffer = PrioritizedReplayBuffer(20)
-    for i in range(50):
-        buffer.add(i, i, i, i, i, i, 0)
-    buffer.add(50, 50, 50, 50, 50, 50, 50)
-    sample = buffer.sample()
-    assert sample[4] == 50
