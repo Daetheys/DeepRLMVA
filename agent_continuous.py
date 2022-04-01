@@ -43,6 +43,7 @@ def select_action(params, apply, state, rng):
     #Logprob isn't used so their is no point is computing it
     return action,None
 
+
 def loss_critic(value_params,value_apply,states,adv,values):
     """ Computes the critic loss for PPO """
     #Predict value
@@ -55,23 +56,22 @@ def loss_critic(value_params,value_apply,states,adv,values):
 
     return loss_critic
 
+
 def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logpis_old,adv,kl_coeff,entropy_coeff):
     """ Computes the actor loss for PPO """
     #Get distributions of actions of the batch
     mean, logstd = policy(policy_params, policy_apply, states)
 
-    #Gets batch to the associated random value used to generate them
-    noise = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-8)
-
     #Computes the probability of these actions with the actual parameters
+    noise = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-10)
     logpis = compute_logprob_tanh(actions,logstd,noise)
 
     #Computes the ratio for PPO
     log_ratio = logpis - logpis_old
     ratio = jnp.exp( log_ratio )
 
-    #Normalize gae (to reduce variance in the loss)
-    adv = (adv-adv.mean())/(adv.std()+1e-8)
+    #Standardize gae before computing the loss
+    adv = (adv-adv.mean())/(adv.std()+1e-10)
 
     #Computes PPO Loss
     loss_1 = ratio * adv
@@ -85,6 +85,7 @@ def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp
     loss_actor = loss_actor.mean()
     
     return loss_actor #+ kl_coeff*kl - entropy_coeff*entropy
+
 
 def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_params, value_params, batch, policy_opt_state, value_opt_state, clip_eps, kl_coeff, entropy_coeff):
     """ Updates the networks on the given batch by gradient descent """

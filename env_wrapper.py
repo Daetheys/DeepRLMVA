@@ -14,7 +14,7 @@ class ActionScalingWrapper(gym.Wrapper):
         self._max_episode_steps = env._max_episode_steps
     def step(self,a):
         a = np.array(a)
-        a = scale_action(a,self.clip_range) #Scale from [-1,1] to the clip range
+        a = jnp.clip(scale_action(a,self.clip_range),self.clip_range[0],self.clip_range[1]) #Scale from [-1,1] to the clip range
         return self.env.step(a)
 
 #----------------------------------------------------------------------
