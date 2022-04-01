@@ -17,10 +17,10 @@ def test_actor_net():
     net = actor_net(5)
     mu,logstd = run_net(net,(45,3))
     assert mu.shape == (45,5)
-    assert logstd.shape == (45,5)
+    assert logstd.shape == (1,5)
     mu,logstd = run_net(net,(23,15))
     assert mu.shape == (23,5)
-    assert logstd.shape == (23,5)
+    assert logstd.shape == (1,5)
 
 def test_critic_net():
     net = value_net(5)

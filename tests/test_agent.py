@@ -17,7 +17,7 @@ def test_policy():
 
     mean, std = policy(params, apply, states)
     assert mean.shape == (15, 3)
-    assert std.shape == (15, 3)
+    assert std.shape == (1, 3)
 
 
 def test_select_action():
@@ -75,10 +75,11 @@ def test_loss_critic():
     params = init(rng, states)
 
     actions = jnp.zeros((15,1))
-    return_ = jnp.zeros((15,1))
+    adv = jnp.zeros((15,1))
+    values = jnp.zeros((15,1))
     clip_eps = 0.1
 
-    loss = loss_critic(params, apply, states,return_)
+    loss = loss_critic(params, apply, states,adv,values)
 
 
 def test_update():
