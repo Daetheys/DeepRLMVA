@@ -64,7 +64,7 @@ def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp
 
     #Computes the probability of these actions with the actual parameters
     normal = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-10)
-    logpis = compute_logprob_tanh(actions,logstd,noise)
+    logpis = compute_logprob_tanh(actions,logstd,normal)
 
     #Computes the ratio for PPO
     log_ratio = logpis - logpis_old
