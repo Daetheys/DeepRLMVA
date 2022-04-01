@@ -30,7 +30,7 @@ def calculate_gaes(rewards, values, done, new_value,gamma=0.99, decay=0.97):
     #Return GAES in the right order
     return np.array(gaes[::-1])
 
-def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_params, value_params, policy_apply, value_apply, rng, add_buffer = True, reward_scaling=1., mask_done=True):
+def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_params, value_params, policy_apply, value_apply, rng, add_buffer = True, reward_scaling=1., mask_done=True, gae_std=True):
     """
     Performs a single rollout.
     Returns informations in a dict of shape (nb_steps, obs_shape)
@@ -88,11 +88,17 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
     new_value = value_apply(value_params,x=next_obs) #Compute values
     gaes = calculate_gaes(traj_info[2], traj_info[3], traj_info[4],new_value,gamma=gamma,decay=decay)  # Compute GAES
 
+    return_ = gaes + traj_info[3]
+
+    if gae_std:
+        gaes = (gaes - gaes.mean())/(gaes.std()+1e-6)
+
     #Add in the buffer (if requested)
     if add_buffer:
         for i in range(nb_steps-1):
-            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], traj_info[5][i], gamma*(1-traj_info[4][i]), gaes[i], traj_info[3][i])
-        replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], next_obs, traj_info[5][i], gamma*(1-traj_info[4][i]), gaes[i], traj_info[3][i])
+            replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], traj_info[0][i+1], traj_info[5][i], gamma*(1-traj_info[4][i]), gaes[i], return_[i])
+        i += 1
+        replay_buffer.add(traj_info[0][i], traj_info[1][i],traj_info[2][i], next_obs, traj_info[5][i], gamma*(1-traj_info[4][i]), gaes[i], return_[i])
 
     #Return stats to print them
     return dict(

@@ -149,7 +149,7 @@ class Trainer:
       t = time.perf_counter()
       
       #Rollout in the train environment to fill the replay buffer
-      train_data,_,_ = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,self.rng,reward_scaling=self.config['reward_scale'],mask_done=self.config['mask_done'])
+      train_data,_,_ = rollout(self.explore_action_function,self.train_env,self.config['training_rollout_length'],self.replay_buffer,self.config['gamma'],self.config['decay'],self.policy_params,self.value_params,self.policy_net_apply,self.value_net_apply,self.rng,reward_scaling=self.config['reward_scale'],mask_done=self.config['mask_done'],gae_std=self.config['gae_std'])
       
       #Counts the number of timesteps
       nb_stepped += len(train_data["actions"])

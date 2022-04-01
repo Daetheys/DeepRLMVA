@@ -44,13 +44,13 @@ def select_action(params, apply, state, rng):
     return action,None
 
 
-def loss_critic(value_params,value_apply,states,adv,values):
+def loss_critic(value_params,value_apply,states,return_):
     """ Computes the critic loss for PPO """
     #Predict value
     value_predicted = value_apply(value_params,x=states)
 
     #Computes GAE targets
-    targets = jax.lax.stop_gradient(adv + values) #stop gradient might not be necessary here
+    targets = jax.lax.stop_gradient(return_) #stop gradient might not be necessary here
 
     loss_critic = jnp.square(value_predicted - targets).mean()
 
@@ -70,9 +70,6 @@ def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp
     log_ratio = logpis - logpis_old
     ratio = jnp.exp( log_ratio )
 
-    #Standardize gae before computing the loss
-    adv = (adv-adv.mean())/(adv.std()+1e-6)
-
     #Computes PPO Loss
     loss_1 = ratio * adv
     loss_2 = jnp.clip(ratio, 1 - clip_eps, 1 + clip_eps) * adv
@@ -90,11 +87,11 @@ def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp
 def update(policy_apply, value_apply, policy_optimizer, value_optimizer, policy_params, value_params, batch, policy_opt_state, value_opt_state, clip_eps, kl_coeff, entropy_coeff):
     """ Updates the networks on the given batch by gradient descent """
     
-    states, actions, rewards, new_observations, logp, discounts, advs, values = batch
+    states, actions, rewards, new_observations, logp, discounts, advs, return_ = batch
 
     #Update critic
     value_grad_fn = jax.value_and_grad(loss_critic)
-    value_loss,value_grads = value_grad_fn(value_params, value_apply, states, advs, values)
+    value_loss,value_grads = value_grad_fn(value_params, value_apply, states, return_)
 
 
     value_updates, new_value_opt_state = value_optimizer.update(value_grads,value_opt_state)
