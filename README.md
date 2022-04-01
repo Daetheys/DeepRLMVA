@@ -9,6 +9,12 @@ open a terminal in the project root directory and run the following:
 $ conda env create -f environment.yml
 ```
 
+Additionally you should make sure xlsxwriter is installed (sometimes it doesn't work with the environment.yml)
+
+```bash
+$ pip install xlsxwriter 
+```
+
 Then setup a new interpreter in the interpreter settings of PyCharm from the newly created conda environment
 named `deeprl`.
 
