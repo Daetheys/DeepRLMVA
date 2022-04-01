@@ -12,6 +12,8 @@ $ conda env create -f environment.yml
 Then setup a new interpreter in the interpreter settings of PyCharm from the newly created conda environment
 named `deeprl`.
 
+### Windows users
+
 /!\ if you work on windows the installing of jaxlib might fail (hardly supported on windows). Thus run this command to
 install the library correctly :
 
@@ -54,3 +56,5 @@ $ python -m pytest
 ```bash
 $ python train.py --config preconfig/InvertedPendulum.json
 ```
+
+More configs are available in the preconfig/ folder
