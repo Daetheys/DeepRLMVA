@@ -58,14 +58,14 @@ def rollout(select_action, env, nb_steps, replay_buffer, gamma, decay, policy_pa
 
         next_obs, reward, done, i = env.step(np.array(act)) #Step the environment
 
-        #Soft horizon
+        #If the environment stops because of time it might create a bias in the data and the agent might not learn very efficiently. It seems to be especially impactful in environment with low time limits like Pendulum-v1 (200 timesteps) and it doesn't seem to have too much impact on environments with higher time limites like InvertedPendulum-v2 (1000 timesteps)
         mask = done
         if mask_done and episode_length == env._max_episode_steps:
             mask = False
         
         #Reward scaling
         reward *= reward_scaling
-
+            
         reward_ep += reward #Log for stats
 
         ### Store Data
