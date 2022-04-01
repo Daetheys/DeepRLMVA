@@ -4,7 +4,7 @@ import collections
 import gym
 
 Transition = collections.namedtuple("Transition",
-                                    field_names=["obs", "act", "rew", "nobs", "logp","discount", "gae","return_"])
+                                    field_names=["obs", "act", "rew", "nobs", "logp","discount", "gae","values"])
 
 class ReplayBuffer:
     def __init__(self,maxlen,env):
@@ -28,7 +28,7 @@ class ReplayBuffer:
                        "rew":np.zeros((maxlen,)+(1,),dtype=np.float32),
                        "discount":np.zeros((maxlen,)+(1,),dtype=np.float32),
                        "gae":np.zeros((maxlen,)+(1,),dtype=np.float32),
-                       "return_":np.zeros((maxlen,)+(1,),dtype=np.float32)
+                       "values":np.zeros((maxlen,)+(1,),dtype=np.float32)
                        }
 
         #Reset the cursor position used to add timesteps and the size of filled area in the buffer

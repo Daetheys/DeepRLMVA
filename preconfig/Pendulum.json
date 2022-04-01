@@ -17,7 +17,6 @@
 	"gamma":0.995,
 	"decay":0.97,
 	"mask_done":true,
-	"gae_std":true,
 	"replay_buffer_size":2048},
     "seed":0,
     "nb_env":1,

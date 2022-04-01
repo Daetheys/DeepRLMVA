@@ -4,10 +4,10 @@ from functools import partial
 from jax.scipy.stats.multivariate_normal import logpdf
 import math
 
-#@jax.jit
+@jax.jit
 def compute_logprob_tanh(action,logstd,normal):
     """ Computes the logprob of action = tanh(mu+std*noise)"""
-
+    
     t1 = -0.5 * (jnp.square(normal) + jnp.log(2*math.pi)) #noise proba
     
     t2 = -logstd #mu+std*noise change of variable
