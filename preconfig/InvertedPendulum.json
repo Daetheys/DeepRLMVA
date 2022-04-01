@@ -1,7 +1,7 @@
 {
     "env":"InvertedPendulum-v2",
     "trainer":{
-	"nb_fit_per_epoch":300*2048/64,
+	"nb_fit_per_epoch":10000,
 	"train_batch_size":64,
 	"training_rollout_length":2048,
 	"testing_rollout_length":1000,

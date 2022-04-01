@@ -17,6 +17,5 @@
 	"mask_done":true,
 	"replay_buffer_size":2048},
     "seed":0,
-    "nb_env":1,
     "nb_steps":100000
 }
