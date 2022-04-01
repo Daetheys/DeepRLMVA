@@ -21,12 +21,12 @@ def select_action_and_explore(params, apply, state, rng):
     std = jnp.exp(logstd)
 
     #Sample action according to distribution
-    noise = jax.random.normal(next(rng),mean.shape) #N(0,1)
-    action = mean + std * noise
+    normal = jax.random.normal(next(rng),mean.shape) #N(0,1)
+    action = mean + std * normal
 
     #Clip action with tanh and computes according logprob
     action = jnp.tanh(action)
-    logp = compute_logprob_tanh(action,logstd,noise)
+    logp = compute_logprob_tanh(action,logstd,normal)
     
     return action,logp
 
@@ -63,15 +63,15 @@ def loss_actor(policy_params,policy_apply,states,discounts,actions,clip_eps,logp
     mean, logstd = policy(policy_params, policy_apply, states)
 
     #Computes the probability of these actions with the actual parameters
-    noise = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-10)
-    logpis = compute_logprob_tanh(actions,logstd,noise)
+    normal = (jnp.arctanh(actions) - mean)/(jnp.exp(logstd)+1e-6) #Gets back to the normal
+    logpis = compute_logprob_tanh(actions,logstd,normal)
 
     #Computes the ratio for PPO
     log_ratio = logpis - logpis_old
     ratio = jnp.exp( log_ratio )
 
     #Standardize gae before computing the loss
-    adv = (adv-adv.mean())/(adv.std()+1e-10)
+    adv = (adv-adv.mean())/(adv.std()+1e-6)
 
     #Computes PPO Loss
     loss_1 = ratio * adv

@@ -6,12 +6,12 @@ dependencies:
   - numpy
   - python=3.9
   - pip:
-    - jax
+    - jax==0.3.1
     - dm-haiku
     - rlax
     - pytest
     - optax
     - gym
     - pygame
-    - mujoco-py<2.2,>=2.1
+    - mujoco-py
     - xlsxwriter
