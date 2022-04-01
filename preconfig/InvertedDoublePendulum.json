@@ -8,7 +8,7 @@
 	"policy_optimizer":"adam",
 	"policy_learning_rate": 2.5e-4,
 	"value_optimizer":"adam",
-	"value_learning_rate": 2.5e-4,
+	"value_learning_rate": 2.5e-3,
 	"clip_eps":0.1,
 	"clip_grad":0.5,
 	"reward_scale":1,
